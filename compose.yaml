@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  timetable-telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: timetable-telegram-bot
+    env_file: 
+      - .env
+    restart: always
