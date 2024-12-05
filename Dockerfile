@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 
 # Определяем команду запуска
-CMD ["python", "bot.py"]
+CMD ["python", "timetable.py"]
