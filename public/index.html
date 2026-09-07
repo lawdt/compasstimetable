@@ -18,9 +18,6 @@
       <button class="icon-btn" id="refreshBtn" type="button" title="Обновить" aria-label="Обновить">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16.5 10a6.5 6.5 0 1 1-2.2-4.9M16.8 4v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      <button class="icon-btn" id="infoBtn" type="button" title="Как читать расписание" aria-label="Как читать расписание">
-        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 9v4.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="10" cy="6.5" r="1" fill="currentColor"/></svg>
-      </button>
     </div>
   </div>
   <div class="topbar__row">
@@ -51,7 +48,9 @@
   <a id="sourceLink" href="#" target="_blank" rel="noopener">Таблица школы</a>
 </footer>
 
-<div class="pull-hint" id="pullHint" hidden aria-hidden="true"></div>
+<div class="pull-hint" id="pullHint" hidden aria-hidden="true">
+  <span class="pull-hint__body" id="pullHintBody"></span>
+</div>
 
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true">
   <div class="sheet__backdrop" data-close></div>

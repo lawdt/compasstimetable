@@ -12,8 +12,6 @@ if (asJson) {
   console.log(JSON.stringify(data, null, 2));
 } else {
   console.log('Классы:', data.classes.map((c) => `${c.id} (${c.title})`).join(', '));
-  console.log('Легенда цветов:');
-  for (const t of data.legend) console.log(`  ${t.colors.join(' ')}  ${t.name}`);
   for (const day of data.days) {
     console.log(`\n=== ${day.title} ===`);
     if (day.notices.length) console.log('  ! ' + day.notices.join(' | '));

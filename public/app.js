@@ -4,16 +4,6 @@ const PROG_KEY = 'compass.programme';
 const CACHE_KEY = 'compass.cache.v1';
 const TZ = 'Europe/Podgorica';
 
-// Расшифровка расписания от школы. Порядок пунктов сохранён.
-const NOTES = [
-  'По российской программе смотрите первый урок, то есть литературу (Кристина).',
-  'Буква «N» обозначает вторую группу английского языка с Натальей (5-й класс делится на две группы).',
-  'Зелёные клеточки обозначают, что половина класса идёт на информатику, а половина на труд, а потом они меняются местами.',
-  'Это тоже обозначение второй группы английского языка.',
-  'Черногорский для старших — доп. программа. 1 занятие 10 евро. Также есть абонемент 100 евро за все активности второй половины дня в месяц (включая дополнительные спортивные и другие занятия, а также помощь с домашкой).',
-  'Минимум 1 черногорский, если сформируется группа желающих, можем также организовать черногорский+ для высоко мотивированных.',
-];
-
 const el = (id) => document.getElementById(id);
 const dom = {
   topbar: el('topbar'), days: el('days'), page: el('page'), content: el('content'),
@@ -21,7 +11,7 @@ const dom = {
   sourceLink: el('sourceLink'), currentClass: el('currentClass'),
   sheet: el('sheet'), sheetTitle: el('sheetTitle'), sheetBody: el('sheetBody'),
   progTrigger: el('progTrigger'), currentProgramme: el('currentProgramme'),
-  pullHint: el('pullHint'),
+  pullHint: el('pullHint'), pullHintBody: el('pullHintBody'),
 };
 
 // Двойные уроки идут по двум программам: первая половина клетки — российская,
@@ -419,23 +409,6 @@ function openProgrammePicker() {
       </button>`).join('')}</div>`);
 }
 
-function openLegend() {
-  const legend = state.data.legend || [];
-  openSheet('Как читать расписание', `
-    <div class="legend-block">
-      <ol class="notes">${NOTES.map((n) => `<li>${esc(n)}</li>`).join('')}</ol>
-    </div>
-    ${legend.length ? `
-      <div class="legend-block">
-        <div class="group-label">Цвета преподавателей</div>
-        <div class="teacher-list">${legend.map((t) => `
-          <div class="teacher">
-            <span class="swatches">${t.colors.map((c) => `<span class="swatch" style="background:${esc(c)}"></span>`).join('')}</span>
-            <span>${esc(t.name)}</span>
-          </div>`).join('')}</div>
-      </div>` : ''}`);
-}
-
 /* ── События ───────────────────────────────────────────────────────────── */
 const haptic = (style = 'light') => {
   try { tg?.HapticFeedback?.impactOccurred?.(style); } catch { /* нет поддержки */ }
@@ -446,12 +419,13 @@ const dayIndex = () => (state.data
   ? state.data.days.findIndex((d) => d.id === state.dayId)
   : -1);
 
-// День всегда открывается с начала: с первого урока, а не с той середины,
-// где человек листал предыдущий.
-function setDay(id) {
+// День открывается с начала — с первого урока, а не с той середины, где
+// человек листал предыдущий. Исключение — переход назад вытягиванием: тогда
+// день показывается с конца, чтобы прокрутка выглядела непрерывной.
+function setDay(id, { edge = 'top' } = {}) {
   state.dayId = id;
   render();
-  window.scrollTo(0, 0);
+  window.scrollTo(0, edge === 'bottom' ? document.documentElement.scrollHeight : 0);
 }
 
 function dayAt(step) {
@@ -467,16 +441,16 @@ dom.days.addEventListener('click', (ev) => {
 });
 
 /* ── Переход к соседнему дню вытягиванием за край ──────────────────────── */
-// Долистали день до конца и продолжаете тянуть — открывается следующий.
-// Порог небольшой, но заметный, чтобы обычная прокрутка не перелистывала.
-const PULL_LIMIT = 96;
-const PULL_LIMIT_WHEEL = 260;
-const PULL_IDLE = 260;
+// Долистали день до конца и продолжаете тянуть — обод вокруг подсказки
+// закрашивается по кругу. Замкнулся и отпустили — открывается следующий
+// день. Отпустили раньше — ничего не происходит.
+const PULL_LIMIT = 110;
+const PULL_IDLE = 500;
 
 let pull = 0;
-let pullAt = 0;
-let pullLock = 0;
+let pullStep = 0;
 let touchY = null;
+let wheelRelease = null;
 
 const atTop = () => window.scrollY <= 0;
 const atBottom = () => {
@@ -484,51 +458,53 @@ const atBottom = () => {
   return window.scrollY + window.innerHeight >= doc.scrollHeight - 1;
 };
 
+const pullProgress = () => Math.min(1, Math.abs(pull) / PULL_LIMIT);
+
 function resetPull() {
   pull = 0;
+  pullStep = 0;
+  clearTimeout(wheelRelease);
+  wheelRelease = null;
   dom.pullHint.hidden = true;
+  dom.pullHint.classList.remove('pull-hint--ready');
 }
 
-function showPullHint(day, step, progress) {
-  const arrow = step > 0
-    ? '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v11m0 0l-4.5-4.5M10 15l4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-    : '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 16V5m0 0L5.5 9.5M10 5l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ARROW_DOWN = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v11m0 0l-4.5-4.5M10 15l4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ARROW_UP = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 16V5m0 0L5.5 9.5M10 5l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-  dom.pullHint.innerHTML = arrow + esc(day.title);
+function drawPullHint(day, step, progress) {
+  dom.pullHintBody.innerHTML = (step > 0 ? ARROW_DOWN : ARROW_UP) + esc(day.title);
   dom.pullHint.hidden = false;
   dom.pullHint.classList.toggle('pull-hint--top', step < 0);
-  if (step < 0) dom.pullHint.style.top = `${dom.topbar.offsetHeight + 12}px`;
-  else dom.pullHint.style.top = '';
-  dom.pullHint.style.opacity = String(0.3 + progress * 0.7);
+  dom.pullHint.classList.toggle('pull-hint--ready', progress === 1);
+  dom.pullHint.style.top = step < 0 ? `${dom.topbar.offsetHeight + 12}px` : '';
+  dom.pullHint.style.setProperty('--pull', String(progress));
+  dom.pullHint.style.opacity = String(0.25 + progress * 0.75);
   dom.pullHint.style.transform =
     `translateX(-50%) translateY(${(1 - progress) * (step < 0 ? -10 : 10)}px)`;
 }
 
-function feedPull(dy, wheel) {
+function feedPull(dy) {
   if (!dy || !state.data || !state.classId || sheetOpen) return;
-
-  const now = Date.now();
-  if (now < pullLock) return;
-  if (now - pullAt > PULL_IDLE) pull = 0;
-  pullAt = now;
 
   const step = dy > 0 ? 1 : -1;
   const day = (step > 0 ? atBottom() : atTop()) ? dayAt(step) : null;
   if (!day) { resetPull(); return; }
 
-  if (pull && Math.sign(pull) !== step) pull = 0;
+  if (pullStep !== step) { pull = 0; pullStep = step; }
   pull += dy;
+  drawPullHint(day, step, pullProgress());
+}
 
-  const limit = wheel ? PULL_LIMIT_WHEEL : PULL_LIMIT;
-  const progress = Math.min(1, Math.abs(pull) / limit);
-  showPullHint(day, step, progress);
-
-  if (progress === 1) {
-    pullLock = now + 500;
-    resetPull();
-    haptic('medium');
-    setDay(day.id);
-  }
+// Переход происходит в момент отпускания — так тягу можно передумать.
+function releasePull() {
+  const step = pullStep;
+  const day = step ? dayAt(step) : null;
+  const ready = pullProgress() === 1;
+  resetPull();
+  if (!ready || !day) return;
+  haptic('medium');
+  setDay(day.id, { edge: step < 0 ? 'bottom' : 'top' });
 }
 
 document.addEventListener('touchstart', (ev) => {
@@ -539,13 +515,20 @@ document.addEventListener('touchstart', (ev) => {
 document.addEventListener('touchmove', (ev) => {
   if (touchY == null || ev.touches.length !== 1) return;
   const y = ev.touches[0].clientY;
-  feedPull(touchY - y, false);
+  feedPull(touchY - y);
   touchY = y;
 }, { passive: true });
 
-document.addEventListener('touchend', () => { touchY = null; resetPull(); }, { passive: true });
+document.addEventListener('touchend', () => { touchY = null; releasePull(); }, { passive: true });
 document.addEventListener('touchcancel', () => { touchY = null; resetPull(); }, { passive: true });
-window.addEventListener('wheel', (ev) => feedPull(ev.deltaY, true), { passive: true });
+
+// У колеса нет момента отпускания, поэтому ждём короткую паузу в прокрутке.
+window.addEventListener('wheel', (ev) => {
+  feedPull(ev.deltaY);
+  if (!pullStep) return;
+  clearTimeout(wheelRelease);
+  wheelRelease = setTimeout(releasePull, PULL_IDLE);
+}, { passive: true });
 
 el('pickerTrigger').addEventListener('click', () => {
   if (!state.data) return;
@@ -557,12 +540,6 @@ dom.progTrigger.addEventListener('click', () => {
   if (!state.data) return;
   haptic();
   openProgrammePicker();
-});
-
-el('infoBtn').addEventListener('click', () => {
-  if (!state.data) return;
-  haptic();
-  openLegend();
 });
 
 el('refreshBtn').addEventListener('click', (ev) => {
