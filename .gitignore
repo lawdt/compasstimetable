@@ -1,2 +1,6 @@
-.venv
 .env
+.env.*
+!.env.example
+node_modules
+.netlify
+.venv

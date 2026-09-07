@@ -1,0 +1,15 @@
+{
+  "name": "compass-timetable",
+  "private": true,
+  "type": "module",
+  "description": "Расписание школы «Компас» (Бар) как миниапп Telegram",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dump": "node scripts/dump.mjs",
+    "setup-bot": "node scripts/setup-bot.mjs",
+    "dev": "node scripts/serve.mjs",
+    "dev:netlify": "netlify dev"
+  }
+}

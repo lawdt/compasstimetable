@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>Расписание · Компас</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+
+<header class="topbar" id="topbar">
+  <div class="topbar__top">
+    <span class="topbar__eyebrow">Школа Компас · Бар</span>
+    <div class="topbar__actions">
+      <button class="icon-btn" id="refreshBtn" type="button" title="Обновить" aria-label="Обновить">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16.5 10a6.5 6.5 0 1 1-2.2-4.9M16.8 4v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="icon-btn" id="infoBtn" type="button" title="Как читать расписание" aria-label="Как читать расписание">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 9v4.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="10" cy="6.5" r="1" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="topbar__row">
+    <button class="picker-trigger" id="pickerTrigger" type="button" aria-haspopup="dialog">
+      <span id="currentClass">Расписание</span>
+      <svg class="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="prog-trigger" id="progTrigger" type="button" aria-haspopup="dialog">
+      <span id="currentProgramme">Обе программы</span>
+      <svg class="chev chev--sm" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+  <nav class="days" id="days" aria-label="Дни недели"></nav>
+</header>
+
+<main class="page" id="page">
+  <div class="skeleton" id="skeleton" aria-hidden="true">
+    <div class="sk-row"><span class="sk sk--time"></span><span class="sk sk--card"></span></div>
+    <div class="sk-row"><span class="sk sk--time"></span><span class="sk sk--card"></span></div>
+    <div class="sk-row"><span class="sk sk--time"></span><span class="sk sk--card sk--short"></span></div>
+    <div class="sk-row"><span class="sk sk--time"></span><span class="sk sk--card"></span></div>
+  </div>
+  <div id="content" hidden></div>
+</main>
+
+<footer class="foot" id="foot" hidden>
+  <span id="freshness"></span>
+  <a id="sourceLink" href="#" target="_blank" rel="noopener">Таблица школы</a>
+</footer>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true">
+  <div class="sheet__backdrop" data-close></div>
+  <div class="sheet__panel" role="document">
+    <div class="sheet__grip" data-close></div>
+    <div class="sheet__head">
+      <h2 id="sheetTitle">Выберите класс</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Закрыть">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet__body" id="sheetBody"></div>
+  </div>
+</div>
+
+<script src="app.js" type="module"></script>
+</body>
+</html>
