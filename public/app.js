@@ -116,6 +116,11 @@ async function load({ force = false } = {}) {
 /* ── Отрисовка ─────────────────────────────────────────────────────────── */
 function render() {
   if (!booted) return;
+  // Фоновое обновление не должно перестраивать ленту, пока её тянут или
+  // доводят: содержимое подменилось бы прямо под пальцем.
+  if (sliding || touch?.axis === 'x') { pendingRender = true; return; }
+  pendingRender = false;
+
   const { data } = state;
 
   if (!data) {
@@ -472,6 +477,7 @@ function slideToDay(step) {
     box.style.transform = '';
     sliding = false;
     setDay(day.id);
+    if (pendingRender) render();
   };
   box.addEventListener('transitionend', finish, { once: true });
   slideTimer = setTimeout(finish, 420);
@@ -498,12 +504,14 @@ const REFRESH_MIN = 72;    // после какого смещения сраб�
 const AXIS_LOCK = 24;      // после какого смещения выбирается направление
 const AXIS_BIAS = 1.2;     // насколько свайп должен быть горизонтальнее
 const REFRESH_HOLD = 500;  // сколько минимум крутится индикатор
-const RUBBER = 0.28;       // насколько вязко тянется у крайнего дня
+const RUBBER = 0.22;       // насколько вязко тянется у крайнего дня
+const EDGE_MAX = 14;       // и насколько далеко вообще может уйти
 
 const atTop = () => window.scrollY <= 0;
 
 let touch = null;
 let sliding = false;
+let pendingRender = false;
 let slideTimer = null;
 let refreshing = false;
 let wheelX = 0;
@@ -519,7 +527,10 @@ function releaseContent() {
   dom.content.classList.remove('is-dragging');
   dom.content.classList.add('is-sliding');
   dom.content.style.transform = '';
-  setTimeout(() => dom.content.classList.remove('is-sliding'), 300);
+  setTimeout(() => {
+    dom.content.classList.remove('is-sliding');
+    if (pendingRender) render();
+  }, 300);
 }
 
 function showRefresh(pull) {
@@ -582,9 +593,13 @@ document.addEventListener('touchmove', (ev) => {
 
   if (touch.axis === 'x') {
     if (!state.data || !state.classId) return;
-    ev.preventDefault();
+    // Браузер мог уже начать прокрутку — тогда событие не отменяемо. Лента
+    // всё равно едет за пальцем, просто страница слегка сдвинется по
+    // вертикали; проверка нужна, чтобы не сыпать предупреждениями.
+    if (ev.cancelable) ev.preventDefault();
     touch.dx = dx;
-    dragContent(swipeTarget(dx) ? dx : dx * RUBBER);
+    const edge = Math.sign(dx) * Math.min(EDGE_MAX, Math.abs(dx) * RUBBER);
+    dragContent(swipeTarget(dx) ? dx : edge);
     return;
   }
 
@@ -594,7 +609,7 @@ document.addEventListener('touchmove', (ev) => {
     if (touch.from == null) touch.from = dy;
     touch.pull = dy - touch.from;
     if (touch.pull > 0) {
-      ev.preventDefault();
+      if (ev.cancelable) ev.preventDefault();
       showRefresh(touch.pull);
     }
     return;
