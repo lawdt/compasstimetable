@@ -40,6 +40,7 @@ body {
   font: 400 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
+  touch-action: pan-y;
 }
 
 button { font: inherit; color: inherit; }
@@ -431,49 +432,30 @@ button { font: inherit; color: inherit; }
 
 .foot a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
 
-/* ── Подсказка при вытягивании за край ──────────────────────────────────── */
-/* Обод закрашивается по кругу по мере тяги: когда круг замкнулся, можно
-   отпускать — тогда и произойдёт переход. */
-.pull-hint {
+/* ── Обновление тягой вниз ──────────────────────────────────────────────── */
+.refresh {
   position: fixed;
   left: 50%;
-  bottom: calc(20px + env(safe-area-inset-bottom));
   z-index: 30;
-  padding: 3px;
-  border-radius: 999px;
-  background: conic-gradient(
-    var(--accent) calc(var(--pull, 0) * 1turn),
-    color-mix(in srgb, var(--accent) 20%, transparent) 0
-  );
-  pointer-events: none;
-  will-change: opacity, transform;
-}
-
-.pull-hint--top { bottom: auto; }
-
-.pull-hint__body {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 7px 15px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   background: var(--card);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: 0 8px 22px -10px rgba(0, 0, 0, .5);
-  transition: background .16s, color .16s;
+  color: var(--accent);
+  box-shadow: 0 6px 18px -6px rgba(0, 0, 0, .4), inset 0 0 0 1px var(--line);
+  pointer-events: none;
 }
 
-.pull-hint__body svg { width: 15px; height: 15px; }
+.refresh svg { width: 18px; height: 18px; }
+.refresh--busy svg { animation: spin .8s linear infinite; }
 
-.pull-hint--ready .pull-hint__body {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
+/* ── Смена дня свайпом ──────────────────────────────────────────────────── */
+#content { transition: transform .22s cubic-bezier(.2, .8, .25, 1), opacity .22s; }
+#content.is-dragging { transition: none; }
 
-/* ── Шторка ─────────────────────────────────────────────────────────────── */
+/* ── Шторка ─────────────────────────────────────────────────────────────── *//* ── Шторка ─────────────────────────────────────────────────────────────── */
 .sheet { position: fixed; inset: 0; z-index: 40; }
 
 .sheet__backdrop {

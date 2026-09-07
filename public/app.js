@@ -11,7 +11,7 @@ const dom = {
   sourceLink: el('sourceLink'), currentClass: el('currentClass'),
   sheet: el('sheet'), sheetTitle: el('sheetTitle'), sheetBody: el('sheetBody'),
   progTrigger: el('progTrigger'), currentProgramme: el('currentProgramme'),
-  pullHint: el('pullHint'), pullHintBody: el('pullHintBody'),
+  refresh: el('refresh'),
 };
 
 // Двойные уроки идут по двум программам: первая половина клетки — российская,
@@ -420,12 +420,24 @@ const dayIndex = () => (state.data
   : -1);
 
 // День открывается с начала — с первого урока, а не с той середины, где
-// человек листал предыдущий. Исключение — переход назад вытягиванием: тогда
-// день показывается с конца, чтобы прокрутка выглядела непрерывной.
-function setDay(id, { edge = 'top' } = {}) {
+// человек листал предыдущий. Направление свайпа задаёт, с какой стороны
+// выезжает новый день.
+function setDay(id, dir = 0) {
+  if (id === state.dayId) { window.scrollTo(0, 0); return; }
   state.dayId = id;
   render();
-  window.scrollTo(0, edge === 'bottom' ? document.documentElement.scrollHeight : 0);
+  window.scrollTo(0, 0);
+  if (!dir) return;
+
+  const box = dom.content;
+  box.classList.add('is-dragging');
+  box.style.transform = `translateX(${dir * 44}px)`;
+  box.style.opacity = '0.25';
+  requestAnimationFrame(() => {
+    box.classList.remove('is-dragging');
+    box.style.transform = '';
+    box.style.opacity = '';
+  });
 }
 
 function dayAt(step) {
@@ -436,98 +448,151 @@ function dayAt(step) {
 dom.days.addEventListener('click', (ev) => {
   const btn = ev.target.closest('[data-day]');
   if (!btn) return;
+  const from = dayIndex();
+  const to = state.data.days.findIndex((d) => d.id === btn.dataset.day);
   haptic();
-  setDay(btn.dataset.day);
+  setDay(btn.dataset.day, to > from ? 1 : -1);
 });
 
-/* ── Переход к соседнему дню вытягиванием за край ──────────────────────── */
-// Долистали день до конца и продолжаете тянуть — обод вокруг подсказки
-// закрашивается по кругу. Замкнулся и отпустили — открывается следующий
-// день. Отпустили раньше — ничего не происходит.
-const PULL_LIMIT = 110;
-const PULL_IDLE = 500;
-
-let pull = 0;
-let pullStep = 0;
-let touchY = null;
-let wheelRelease = null;
+/* ── Жесты: дни свайпом по горизонтали, обновление тягой вниз ──────────── */
+const SWIPE_MIN = 60;      // после какого смещения меняется день
+const REFRESH_MIN = 72;    // после какого смещения срабатывает обновление
+const AXIS_LOCK = 10;      // после какого смещения выбирается направление
+const AXIS_BIAS = 1.4;     // насколько свайп должен быть горизонтальнее
+const REFRESH_HOLD = 500;  // сколько минимум крутится индикатор
+const RUBBER = 0.28;       // насколько вязко тянется у крайнего дня
 
 const atTop = () => window.scrollY <= 0;
-const atBottom = () => {
-  const doc = document.documentElement;
-  return window.scrollY + window.innerHeight >= doc.scrollHeight - 1;
-};
 
-const pullProgress = () => Math.min(1, Math.abs(pull) / PULL_LIMIT);
+let touch = null;
+let refreshing = false;
+let wheelX = 0;
+let wheelTimer = null;
 
-function resetPull() {
-  pull = 0;
-  pullStep = 0;
-  clearTimeout(wheelRelease);
-  wheelRelease = null;
-  dom.pullHint.hidden = true;
-  dom.pullHint.classList.remove('pull-hint--ready');
+function dragContent(dx) {
+  dom.content.classList.add('is-dragging');
+  dom.content.style.transform = `translateX(${dx}px)`;
+  dom.content.style.opacity = String(1 - Math.min(0.35, Math.abs(dx) / 400));
 }
 
-const ARROW_DOWN = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v11m0 0l-4.5-4.5M10 15l4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const ARROW_UP = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 16V5m0 0L5.5 9.5M10 5l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-function drawPullHint(day, step, progress) {
-  dom.pullHintBody.innerHTML = (step > 0 ? ARROW_DOWN : ARROW_UP) + esc(day.title);
-  dom.pullHint.hidden = false;
-  dom.pullHint.classList.toggle('pull-hint--top', step < 0);
-  dom.pullHint.classList.toggle('pull-hint--ready', progress === 1);
-  dom.pullHint.style.top = step < 0 ? `${dom.topbar.offsetHeight + 12}px` : '';
-  dom.pullHint.style.setProperty('--pull', String(progress));
-  dom.pullHint.style.opacity = String(0.25 + progress * 0.75);
-  dom.pullHint.style.transform =
-    `translateX(-50%) translateY(${(1 - progress) * (step < 0 ? -10 : 10)}px)`;
+function releaseContent() {
+  dom.content.classList.remove('is-dragging');
+  dom.content.style.transform = '';
+  dom.content.style.opacity = '';
 }
 
-function feedPull(dy) {
-  if (!dy || !state.data || !state.classId || sheetOpen) return;
-
-  const step = dy > 0 ? 1 : -1;
-  const day = (step > 0 ? atBottom() : atTop()) ? dayAt(step) : null;
-  if (!day) { resetPull(); return; }
-
-  if (pullStep !== step) { pull = 0; pullStep = step; }
-  pull += dy;
-  drawPullHint(day, step, pullProgress());
+function showRefresh(pull) {
+  const progress = Math.min(1, pull / REFRESH_MIN);
+  dom.refresh.hidden = false;
+  dom.refresh.style.transform =
+    `translateX(-50%) translateY(${pull * 0.55}px) rotate(${progress * 300}deg)`;
+  dom.refresh.style.opacity = String(Math.min(1, progress * 1.4));
 }
 
-// Переход происходит в момент отпускания — так тягу можно передумать.
-function releasePull() {
-  const step = pullStep;
-  const day = step ? dayAt(step) : null;
-  const ready = pullProgress() === 1;
-  resetPull();
-  if (!ready || !day) return;
+function hideRefresh() {
+  dom.refresh.hidden = true;
+  dom.refresh.classList.remove('refresh--busy');
+  dom.refresh.style.transform = '';
+  dom.refresh.style.opacity = '';
+}
+
+async function runRefresh() {
+  if (refreshing) return;
+  refreshing = true;
+  dom.refresh.classList.add('refresh--busy');
+  dom.refresh.style.transform = `translateX(-50%) translateY(${REFRESH_MIN * 0.55}px)`;
+  dom.refresh.style.opacity = '1';
   haptic('medium');
-  setDay(day.id, { edge: step < 0 ? 'bottom' : 'top' });
+  try {
+    // Держим индикатор хотя бы полсекунды: иначе при быстром ответе он
+    // мигает и выглядит сбоем.
+    await Promise.all([
+      load({ force: true }),
+      new Promise((done) => setTimeout(done, REFRESH_HOLD)),
+    ]);
+  } finally {
+    refreshing = false;
+    hideRefresh();
+  }
+}
+
+// Свайп у первого и последнего дня тянется вязко и никуда не ведёт.
+function swipeTarget(dx) {
+  return dx < 0 ? dayAt(1) : dayAt(-1);
 }
 
 document.addEventListener('touchstart', (ev) => {
-  touchY = ev.touches.length === 1 ? ev.touches[0].clientY : null;
-  resetPull();
+  if (ev.touches.length !== 1 || sheetOpen || refreshing) { touch = null; return; }
+  const t = ev.touches[0];
+  dom.refresh.style.top = `${dom.topbar.offsetHeight + 6}px`;
+  touch = { x: t.clientX, y: t.clientY, axis: null, dx: 0, pull: 0, top: atTop() };
 }, { passive: true });
 
 document.addEventListener('touchmove', (ev) => {
-  if (touchY == null || ev.touches.length !== 1) return;
-  const y = ev.touches[0].clientY;
-  feedPull(touchY - y);
-  touchY = y;
+  if (!touch || ev.touches.length !== 1) return;
+  const t = ev.touches[0];
+  const dx = t.clientX - touch.x;
+  const dy = t.clientY - touch.y;
+
+  if (!touch.axis) {
+    if (Math.abs(dx) < AXIS_LOCK && Math.abs(dy) < AXIS_LOCK) return;
+    touch.axis = Math.abs(dx) > Math.abs(dy) * AXIS_BIAS ? 'x' : 'y';
+  }
+
+  if (touch.axis === 'x') {
+    if (!state.data || !state.classId) return;
+    ev.preventDefault();
+    touch.dx = dx;
+    dragContent(swipeTarget(dx) ? dx : dx * RUBBER);
+    return;
+  }
+
+  if (touch.top && dy > 0) {
+    ev.preventDefault();
+    touch.pull = dy;
+    showRefresh(dy);
+  } else if (touch.pull) {
+    touch.pull = 0;
+    hideRefresh();
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', () => {
+  if (!touch) return;
+  const { axis, dx, pull } = touch;
+  touch = null;
+
+  if (axis === 'x') {
+    releaseContent();
+    const day = swipeTarget(dx);
+    if (day && Math.abs(dx) >= SWIPE_MIN) {
+      haptic();
+      setDay(day.id, dx < 0 ? 1 : -1);
+    }
+    return;
+  }
+
+  if (pull >= REFRESH_MIN) runRefresh();
+  else hideRefresh();
 }, { passive: true });
 
-document.addEventListener('touchend', () => { touchY = null; releasePull(); }, { passive: true });
-document.addEventListener('touchcancel', () => { touchY = null; resetPull(); }, { passive: true });
+document.addEventListener('touchcancel', () => {
+  touch = null;
+  releaseContent();
+  if (!refreshing) hideRefresh();
+}, { passive: true });
 
-// У колеса нет момента отпускания, поэтому ждём короткую паузу в прокрутке.
+// Трекпад: горизонтальная прокрутка тоже меняет день.
 window.addEventListener('wheel', (ev) => {
-  feedPull(ev.deltaY);
-  if (!pullStep) return;
-  clearTimeout(wheelRelease);
-  wheelRelease = setTimeout(releasePull, PULL_IDLE);
+  if (sheetOpen || !state.data || !state.classId) return;
+  if (Math.abs(ev.deltaX) <= Math.abs(ev.deltaY)) return;
+  wheelX += ev.deltaX;
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(() => {
+    const day = wheelX > 0 ? dayAt(1) : dayAt(-1);
+    if (day && Math.abs(wheelX) >= 120) setDay(day.id, wheelX > 0 ? 1 : -1);
+    wheelX = 0;
+  }, 90);
 }, { passive: true });
 
 el('pickerTrigger').addEventListener('click', () => {
@@ -573,7 +638,12 @@ dom.sheet.addEventListener('click', (ev) => {
 });
 
 document.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Escape' && sheetOpen) closeSheet();
+  if (ev.key === 'Escape' && sheetOpen) { closeSheet(); return; }
+  if (sheetOpen || !state.data || !state.classId) return;
+  const step = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
+  if (!step) return;
+  const day = dayAt(step);
+  if (day) setDay(day.id, step);
 });
 
 const onScroll = () => dom.topbar.classList.toggle('topbar--stuck', window.scrollY > 4);

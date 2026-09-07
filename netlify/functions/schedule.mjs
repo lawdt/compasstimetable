@@ -14,8 +14,11 @@ export default async (req) => {
     return json(data, {
       // Браузер держит ответ недолго, тяжёлый разбор кэширует CDN.
       'cache-control': fresh ? 'no-store' : 'public, max-age=120',
+      // Тяга вниз должна давать свежие данные, поэтому окно кэша у CDN
+      // короткое — только чтобы функция не пересчитывала таблицу на каждый
+      // повторный жест.
       'netlify-cdn-cache-control': fresh
-        ? 'public, durable, s-maxage=60'
+        ? 'public, durable, s-maxage=10'
         : 'public, durable, s-maxage=900, stale-while-revalidate=3600',
     });
   } catch (err) {
