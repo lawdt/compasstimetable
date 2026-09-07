@@ -164,7 +164,11 @@ button { font: inherit; color: inherit; }
 
 .icon-btn svg { width: 20px; height: 20px; }
 .icon-btn:active { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
-.icon-btn--spin svg { animation: spin .7s cubic-bezier(.4, .1, .3, 1); }
+
+.icon-btn[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -213,6 +217,10 @@ button { font: inherit; color: inherit; }
 .page {
   padding: 4px var(--gutter) 8px;
   min-height: 60vh;
+  /* Соседние дни стоят слева и справа за пределами экрана — обрезаем их
+     здесь, чтобы страница не ездила по горизонтали. Именно clip, а не
+     hidden: он не создаёт контейнер прокрутки и не ломает липкую шапку. */
+  overflow-x: clip;
 }
 
 .notice {
@@ -451,9 +459,32 @@ button { font: inherit; color: inherit; }
 .refresh svg { width: 18px; height: 18px; }
 .refresh--busy svg { animation: spin .8s linear infinite; }
 
+/* ── Компактный режим: только уроки, плотнее ────────────────────────────── */
+.is-compact .slot__time { padding-top: 9px; }
+.is-compact .slot__body { padding-top: 6px; }
+.is-compact .lesson { padding: 9px 12px 9px 14px; border-radius: 13px; }
+.is-compact .lesson__title { font-size: 15px; }
+.is-compact .tags { margin-bottom: 5px; }
+
 /* ── Смена дня свайпом ──────────────────────────────────────────────────── */
-#content { transition: transform .22s cubic-bezier(.2, .8, .25, 1), opacity .22s; }
+/* Лента едет целиком, вместе с соседними днями: за пальцем видно, что
+   приезжает следующий день, а не то же место после перерисовки. */
+#content { position: relative; }
 #content.is-dragging { transition: none; }
+
+#content.is-sliding {
+  transition: transform .32s cubic-bezier(.22, .74, .26, 1);
+}
+
+.pane--side {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.pane--prev { transform: translateX(calc(-100% - var(--gutter) * 2)); }
+.pane--next { transform: translateX(calc(100% + var(--gutter) * 2)); }
 
 /* ── Шторка ─────────────────────────────────────────────────────────────── *//* ── Шторка ─────────────────────────────────────────────────────────────── */
 .sheet { position: fixed; inset: 0; z-index: 40; }

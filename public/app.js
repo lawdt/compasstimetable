@@ -1,6 +1,7 @@
 const tg = window.Telegram?.WebApp;
 const STORE_KEY = 'compass.class';
 const PROG_KEY = 'compass.programme';
+const COMPACT_KEY = 'compass.compact';
 const CACHE_KEY = 'compass.cache.v1';
 const TZ = 'Europe/Podgorica';
 
@@ -11,7 +12,8 @@ const dom = {
   sourceLink: el('sourceLink'), currentClass: el('currentClass'),
   sheet: el('sheet'), sheetTitle: el('sheetTitle'), sheetBody: el('sheetBody'),
   progTrigger: el('progTrigger'), currentProgramme: el('currentProgramme'),
-  refresh: el('refresh'),
+  refresh: el('refresh'), compactBtn: el('compactBtn'),
+  page: el('page'),
 };
 
 // Двойные уроки идут по двум программам: первая половина клетки — российская,
@@ -23,7 +25,9 @@ const PROGRAMMES = [
   { id: 'ua', title: 'Украинская', hint: 'В двойном уроке — только вторая половина' },
 ];
 
-const state = { data: null, classId: null, programme: 'all', dayId: null, error: null };
+const state = {
+  data: null, classId: null, programme: 'all', compact: false, dayId: null, error: null,
+};
 let booted = false;
 
 /* ── Хранилище выбранного класса ───────────────────────────────────────── */
@@ -143,6 +147,10 @@ function render() {
 
   // Переключатель нужен только там, где есть деление по программам:
   // в младших классах двойных уроков может не быть вовсе.
+  document.body.classList.toggle('is-compact', state.compact);
+  dom.compactBtn.setAttribute('aria-pressed', String(state.compact));
+  dom.compactBtn.title = state.compact ? 'Показывать перемены' : 'Только уроки';
+
   const prog = PROGRAMMES.find((p) => p.id === state.programme) || PROGRAMMES[0];
   dom.currentProgramme.textContent = prog.title;
   dom.progTrigger.classList.toggle('prog-trigger--set', prog.id !== 'all');
@@ -159,8 +167,15 @@ function render() {
       </div>`;
     el('pickBtn').onclick = openClassPicker;
   } else {
-    const day = data.days.find((d) => d.id === state.dayId);
-    dom.content.innerHTML = renderDay(day, cls, now);
+    // Рядом с текущим днём держим соседние: при свайпе они выезжают вместе
+    // с ним, поэтому переход выглядит как сдвиг, а не как подмена.
+    const i = dayIndex();
+    const pane = (d, side) => (d
+      ? `<div class="pane${side ? ` pane--side pane--${side}` : ''}">${renderDay(d, cls, now)}</div>`
+      : '');
+    dom.content.innerHTML = pane(data.days[i - 1], 'prev')
+      + pane(data.days[i], '')
+      + pane(data.days[i + 1], 'next');
   }
 
   dom.foot.hidden = false;
@@ -182,14 +197,19 @@ function renderDays(data, now) {
 }
 
 function renderDay(day, cls, now) {
-  const entries = day.byClass[cls.id] || [];
+  const all = day.byClass[cls.id] || [];
+  // Компактный режим оставляет одни уроки: перемены, паузы, обед, конец дня
+  // и объявления скрываются.
+  const entries = state.compact ? all.filter((e) => e.kind === 'lesson') : all;
+
   if (!entries.length) {
+    const what = state.compact ? 'уроков' : 'занятий';
     return `<div class="empty"><div class="empty__mark">🌿</div>
-      <p>В ${esc(day.title.toLowerCase())} занятий нет.</p></div>`;
+      <p>В ${esc(day.title.toLowerCase())} ${what} нет.</p></div>`;
   }
 
   const isToday = day.id === now.dayId;
-  const notices = day.notices.map(noticeCard).join('');
+  const notices = state.compact ? '' : day.notices.map(noticeCard).join('');
   const rows = entries.map((e) => slot(e, cls, isToday, now.minutes)).join('');
   return notices + `<div class="timeline">${rows}</div>`;
 }
@@ -420,24 +440,42 @@ const dayIndex = () => (state.data
   : -1);
 
 // День открывается с начала — с первого урока, а не с той середины, где
-// человек листал предыдущий. Направление свайпа задаёт, с какой стороны
-// выезжает новый день.
-function setDay(id, dir = 0) {
+// человек листал предыдущий.
+function setDay(id) {
   if (id === state.dayId) { window.scrollTo(0, 0); return; }
   state.dayId = id;
   render();
   window.scrollTo(0, 0);
-  if (!dir) return;
+}
+
+// Ширина одного «экрана» ленты: содержимое плюс отступы по краям.
+function paneWidth() {
+  const gutter = parseFloat(getComputedStyle(dom.page).paddingLeft) || 0;
+  return dom.content.clientWidth + gutter * 2;
+}
+
+// Доводит ленту до соседнего дня и уже потом переставляет содержимое.
+function slideToDay(step) {
+  const day = dayAt(step);
+  if (!day || sliding) return false;
+  sliding = true;
 
   const box = dom.content;
-  box.classList.add('is-dragging');
-  box.style.transform = `translateX(${dir * 44}px)`;
-  box.style.opacity = '0.25';
-  requestAnimationFrame(() => {
-    box.classList.remove('is-dragging');
+  box.classList.remove('is-dragging');
+  box.classList.add('is-sliding');
+  box.style.transform = `translateX(${-step * paneWidth()}px)`;
+
+  const finish = () => {
+    clearTimeout(slideTimer);
+    box.removeEventListener('transitionend', finish);
+    box.classList.remove('is-sliding');
     box.style.transform = '';
-    box.style.opacity = '';
-  });
+    sliding = false;
+    setDay(day.id);
+  };
+  box.addEventListener('transitionend', finish, { once: true });
+  slideTimer = setTimeout(finish, 420);
+  return true;
 }
 
 function dayAt(step) {
@@ -448,10 +486,10 @@ function dayAt(step) {
 dom.days.addEventListener('click', (ev) => {
   const btn = ev.target.closest('[data-day]');
   if (!btn) return;
-  const from = dayIndex();
-  const to = state.data.days.findIndex((d) => d.id === btn.dataset.day);
   haptic();
-  setDay(btn.dataset.day, to > from ? 1 : -1);
+  const step = state.data.days.findIndex((d) => d.id === btn.dataset.day) - dayIndex();
+  if (Math.abs(step) === 1 && slideToDay(step)) return;
+  setDay(btn.dataset.day);
 });
 
 /* ── Жесты: дни свайпом по горизонтали, обновление тягой вниз ──────────── */
@@ -465,6 +503,8 @@ const RUBBER = 0.28;       // насколько вязко тянется у к
 const atTop = () => window.scrollY <= 0;
 
 let touch = null;
+let sliding = false;
+let slideTimer = null;
 let refreshing = false;
 let wheelX = 0;
 let wheelTimer = null;
@@ -472,13 +512,14 @@ let wheelTimer = null;
 function dragContent(dx) {
   dom.content.classList.add('is-dragging');
   dom.content.style.transform = `translateX(${dx}px)`;
-  dom.content.style.opacity = String(1 - Math.min(0.35, Math.abs(dx) / 400));
 }
 
+// Возврат на место, если свайп не дотянул до порога.
 function releaseContent() {
   dom.content.classList.remove('is-dragging');
+  dom.content.classList.add('is-sliding');
   dom.content.style.transform = '';
-  dom.content.style.opacity = '';
+  setTimeout(() => dom.content.classList.remove('is-sliding'), 300);
 }
 
 function showRefresh(pull) {
@@ -522,7 +563,7 @@ function swipeTarget(dx) {
 }
 
 document.addEventListener('touchstart', (ev) => {
-  if (ev.touches.length !== 1 || sheetOpen || refreshing) { touch = null; return; }
+  if (ev.touches.length !== 1 || sheetOpen || refreshing || sliding) { touch = null; return; }
   const t = ev.touches[0];
   dom.refresh.style.top = `${dom.topbar.offsetHeight + 6}px`;
   touch = { x: t.clientX, y: t.clientY, axis: null, dx: 0, pull: 0, from: atTop() ? 0 : null };
@@ -572,11 +613,11 @@ document.addEventListener('touchend', () => {
   touch = null;
 
   if (axis === 'x') {
-    releaseContent();
-    const day = swipeTarget(dx);
-    if (day && Math.abs(dx) >= SWIPE_MIN) {
+    if (swipeTarget(dx) && Math.abs(dx) >= SWIPE_MIN) {
       haptic();
-      setDay(day.id, dx < 0 ? 1 : -1);
+      slideToDay(dx < 0 ? 1 : -1);
+    } else {
+      releaseContent();
     }
     return;
   }
@@ -598,8 +639,7 @@ window.addEventListener('wheel', (ev) => {
   wheelX += ev.deltaX;
   clearTimeout(wheelTimer);
   wheelTimer = setTimeout(() => {
-    const day = wheelX > 0 ? dayAt(1) : dayAt(-1);
-    if (day && Math.abs(wheelX) >= 120) setDay(day.id, wheelX > 0 ? 1 : -1);
+    if (Math.abs(wheelX) >= 120) slideToDay(wheelX > 0 ? 1 : -1);
     wheelX = 0;
   }, 90);
 }, { passive: true });
@@ -616,13 +656,13 @@ dom.progTrigger.addEventListener('click', () => {
   openProgrammePicker();
 });
 
-el('refreshBtn').addEventListener('click', (ev) => {
-  const btn = ev.currentTarget;
-  btn.classList.remove('icon-btn--spin');
-  void btn.offsetWidth;
-  btn.classList.add('icon-btn--spin');
+dom.compactBtn.addEventListener('click', () => {
+  if (!state.data) return;
+  state.compact = !state.compact;
+  store.set(COMPACT_KEY, state.compact ? '1' : '0');
   haptic();
-  load({ force: true });
+  render();
+  window.scrollTo(0, 0);
 });
 
 dom.sheet.addEventListener('click', (ev) => {
@@ -650,9 +690,7 @@ document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape' && sheetOpen) { closeSheet(); return; }
   if (sheetOpen || !state.data || !state.classId) return;
   const step = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
-  if (!step) return;
-  const day = dayAt(step);
-  if (day) setDay(day.id, step);
+  if (step) slideToDay(step);
 });
 
 const onScroll = () => dom.topbar.classList.toggle('topbar--stuck', window.scrollY > 4);
@@ -701,13 +739,15 @@ const requested = params.get('class') || tg?.initDataUnsafe?.start_param || '';
 const requestedProg = params.get('prog') || '';
 
 const loading = load();
-const [savedClass, savedProg] = await Promise.all([
+const [savedClass, savedProg, savedCompact] = await Promise.all([
   store.get(STORE_KEY),
   store.get(PROG_KEY),
+  store.get(COMPACT_KEY),
 ]);
 state.classId = requested || savedClass;
 const prog = requestedProg || savedProg;
 if (PROGRAMMES.some((p) => p.id === prog)) state.programme = prog;
+state.compact = savedCompact === '1';
 booted = true;
 render();
 await loading;
