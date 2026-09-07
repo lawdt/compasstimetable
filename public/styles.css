@@ -431,6 +431,30 @@ button { font: inherit; color: inherit; }
 
 .foot a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
 
+/* ── Подсказка при вытягивании за край ──────────────────────────────────── */
+.pull-hint {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 15px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 8px 22px -8px rgba(0, 0, 0, .45);
+}
+
+.pull-hint--top { bottom: auto; }
+
+.pull-hint svg { width: 15px; height: 15px; }
+
 /* ── Шторка ─────────────────────────────────────────────────────────────── */
 .sheet { position: fixed; inset: 0; z-index: 40; }
 

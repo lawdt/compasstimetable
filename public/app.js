@@ -21,6 +21,7 @@ const dom = {
   sourceLink: el('sourceLink'), currentClass: el('currentClass'),
   sheet: el('sheet'), sheetTitle: el('sheetTitle'), sheetBody: el('sheetBody'),
   progTrigger: el('progTrigger'), currentProgramme: el('currentProgramme'),
+  pullHint: el('pullHint'),
 };
 
 // Двойные уроки идут по двум программам: первая половина клетки — российская,
@@ -440,13 +441,111 @@ const haptic = (style = 'light') => {
   try { tg?.HapticFeedback?.impactOccurred?.(style); } catch { /* нет поддержки */ }
 };
 
+/* ── Переключение дней ─────────────────────────────────────────────────── */
+const dayIndex = () => (state.data
+  ? state.data.days.findIndex((d) => d.id === state.dayId)
+  : -1);
+
+// День всегда открывается с начала: с первого урока, а не с той середины,
+// где человек листал предыдущий.
+function setDay(id) {
+  state.dayId = id;
+  render();
+  window.scrollTo(0, 0);
+}
+
+function dayAt(step) {
+  const i = dayIndex();
+  return i < 0 ? null : state.data.days[i + step] || null;
+}
+
 dom.days.addEventListener('click', (ev) => {
   const btn = ev.target.closest('[data-day]');
   if (!btn) return;
-  state.dayId = btn.dataset.day;
   haptic();
-  render();
+  setDay(btn.dataset.day);
 });
+
+/* ── Переход к соседнему дню вытягиванием за край ──────────────────────── */
+// Долистали день до конца и продолжаете тянуть — открывается следующий.
+// Порог небольшой, но заметный, чтобы обычная прокрутка не перелистывала.
+const PULL_LIMIT = 96;
+const PULL_LIMIT_WHEEL = 260;
+const PULL_IDLE = 260;
+
+let pull = 0;
+let pullAt = 0;
+let pullLock = 0;
+let touchY = null;
+
+const atTop = () => window.scrollY <= 0;
+const atBottom = () => {
+  const doc = document.documentElement;
+  return window.scrollY + window.innerHeight >= doc.scrollHeight - 1;
+};
+
+function resetPull() {
+  pull = 0;
+  dom.pullHint.hidden = true;
+}
+
+function showPullHint(day, step, progress) {
+  const arrow = step > 0
+    ? '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v11m0 0l-4.5-4.5M10 15l4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    : '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 16V5m0 0L5.5 9.5M10 5l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  dom.pullHint.innerHTML = arrow + esc(day.title);
+  dom.pullHint.hidden = false;
+  dom.pullHint.classList.toggle('pull-hint--top', step < 0);
+  if (step < 0) dom.pullHint.style.top = `${dom.topbar.offsetHeight + 12}px`;
+  else dom.pullHint.style.top = '';
+  dom.pullHint.style.opacity = String(0.3 + progress * 0.7);
+  dom.pullHint.style.transform =
+    `translateX(-50%) translateY(${(1 - progress) * (step < 0 ? -10 : 10)}px)`;
+}
+
+function feedPull(dy, wheel) {
+  if (!dy || !state.data || !state.classId || sheetOpen) return;
+
+  const now = Date.now();
+  if (now < pullLock) return;
+  if (now - pullAt > PULL_IDLE) pull = 0;
+  pullAt = now;
+
+  const step = dy > 0 ? 1 : -1;
+  const day = (step > 0 ? atBottom() : atTop()) ? dayAt(step) : null;
+  if (!day) { resetPull(); return; }
+
+  if (pull && Math.sign(pull) !== step) pull = 0;
+  pull += dy;
+
+  const limit = wheel ? PULL_LIMIT_WHEEL : PULL_LIMIT;
+  const progress = Math.min(1, Math.abs(pull) / limit);
+  showPullHint(day, step, progress);
+
+  if (progress === 1) {
+    pullLock = now + 500;
+    resetPull();
+    haptic('medium');
+    setDay(day.id);
+  }
+}
+
+document.addEventListener('touchstart', (ev) => {
+  touchY = ev.touches.length === 1 ? ev.touches[0].clientY : null;
+  resetPull();
+}, { passive: true });
+
+document.addEventListener('touchmove', (ev) => {
+  if (touchY == null || ev.touches.length !== 1) return;
+  const y = ev.touches[0].clientY;
+  feedPull(touchY - y, false);
+  touchY = y;
+}, { passive: true });
+
+document.addEventListener('touchend', () => { touchY = null; resetPull(); }, { passive: true });
+document.addEventListener('touchcancel', () => { touchY = null; resetPull(); }, { passive: true });
+window.addEventListener('wheel', (ev) => feedPull(ev.deltaY, true), { passive: true });
 
 el('pickerTrigger').addEventListener('click', () => {
   if (!state.data) return;
