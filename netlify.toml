@@ -16,12 +16,15 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
+# Скрипт и стили держим с обязательной проверкой версии: имена файлов не
+# содержат хэша, а после деплоя браузер должен подхватить новый код сразу.
+# Отдаётся ETag, так что повторное открытие обходится ответом 304.
 [[headers]]
   for = "/*.css"
   [headers.values]
-    Cache-Control = "public, max-age=600"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/*.js"
   [headers.values]
-    Cache-Control = "public, max-age=600"
+    Cache-Control = "public, max-age=0, must-revalidate"

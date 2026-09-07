@@ -457,8 +457,8 @@ dom.days.addEventListener('click', (ev) => {
 /* ── Жесты: дни свайпом по горизонтали, обновление тягой вниз ──────────── */
 const SWIPE_MIN = 60;      // после какого смещения меняется день
 const REFRESH_MIN = 72;    // после какого смещения срабатывает обновление
-const AXIS_LOCK = 10;      // после какого смещения выбирается направление
-const AXIS_BIAS = 1.4;     // насколько свайп должен быть горизонтальнее
+const AXIS_LOCK = 24;      // после какого смещения выбирается направление
+const AXIS_BIAS = 1.2;     // насколько свайп должен быть горизонтальнее
 const REFRESH_HOLD = 500;  // сколько минимум крутится индикатор
 const RUBBER = 0.28;       // насколько вязко тянется у крайнего дня
 
@@ -525,7 +525,7 @@ document.addEventListener('touchstart', (ev) => {
   if (ev.touches.length !== 1 || sheetOpen || refreshing) { touch = null; return; }
   const t = ev.touches[0];
   dom.refresh.style.top = `${dom.topbar.offsetHeight + 6}px`;
-  touch = { x: t.clientX, y: t.clientY, axis: null, dx: 0, pull: 0, top: atTop() };
+  touch = { x: t.clientX, y: t.clientY, axis: null, dx: 0, pull: 0, from: atTop() ? 0 : null };
 }, { passive: true });
 
 document.addEventListener('touchmove', (ev) => {
@@ -547,12 +547,21 @@ document.addEventListener('touchmove', (ev) => {
     return;
   }
 
-  if (touch.top && dy > 0) {
-    ev.preventDefault();
-    touch.pull = dy;
-    showRefresh(dy);
-  } else if (touch.pull) {
+  // Отсчёт тяги начинаем с того момента, когда список упёрся в начало:
+  // так жест работает и если до верха долистали этим же движением.
+  if (atTop() && dy > 0) {
+    if (touch.from == null) touch.from = dy;
+    touch.pull = dy - touch.from;
+    if (touch.pull > 0) {
+      ev.preventDefault();
+      showRefresh(touch.pull);
+    }
+    return;
+  }
+
+  if (touch.pull || touch.from != null) {
     touch.pull = 0;
+    touch.from = null;
     hideRefresh();
   }
 }, { passive: false });
