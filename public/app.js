@@ -13,7 +13,7 @@ const dom = {
   sheet: el('sheet'), sheetTitle: el('sheetTitle'), sheetBody: el('sheetBody'),
   progTrigger: el('progTrigger'), currentProgramme: el('currentProgramme'),
   refresh: el('refresh'), compactBtn: el('compactBtn'),
-  page: el('page'),
+  page: el('page'), reportBtn: el('reportBtn'),
 };
 
 // Двойные уроки идут по двум программам: первая половина клетки — российская,
@@ -434,6 +434,70 @@ function openProgrammePicker() {
       </button>`).join('')}</div>`);
 }
 
+// Сообщение об ошибке уходит владельцу в Telegram: разбирать расписание
+// по клеткам всё равно приходится вручную, а так хотя бы понятно, где искать.
+function openReport() {
+  openSheet('Сообщить об ошибке', `
+    <div class="report">
+      <p class="report__hint">Что не так в расписании? Напишите — посмотрю и поправлю.</p>
+      <textarea id="reportText" rows="5" maxlength="1000"
+        placeholder="Например: третий урок в среду показан неверно — там должна быть математика"></textarea>
+      <div class="report__foot">
+        <span class="report__count" id="reportCount">0 / 1000</span>
+        <button class="report__send" type="button" data-send disabled>Отправить</button>
+      </div>
+      <p class="report__hint">К сообщению приложатся класс, день и выбранная программа.</p>
+      <p class="report__status" id="reportStatus"></p>
+    </div>`);
+
+  const field = el('reportText');
+  const count = el('reportCount');
+  const send = dom.sheetBody.querySelector('[data-send]');
+  field.addEventListener('input', () => {
+    count.textContent = `${field.value.length} / 1000`;
+    send.disabled = field.value.trim().length < 3;
+  });
+  field.focus();
+}
+
+async function sendReport(button) {
+  const field = el('reportText');
+  const status = el('reportStatus');
+  const cls = state.data.classes.find((c) => c.id === state.classId);
+  const day = state.data.days.find((d) => d.id === state.dayId);
+  const prog = PROGRAMMES.find((p) => p.id === state.programme);
+
+  button.disabled = true;
+  status.className = 'report__status';
+  status.textContent = 'Отправляем…';
+
+  try {
+    const res = await fetch('/api/report', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        text: field.value,
+        class: cls?.title || '',
+        day: day?.title || '',
+        programme: prog?.title || '',
+        initData: tg?.initData || '',
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `ошибка ${res.status}`);
+
+    status.className = 'report__status report__status--ok';
+    status.textContent = 'Спасибо, сообщение отправлено.';
+    field.value = '';
+    haptic('medium');
+    setTimeout(() => { if (sheetOpen) closeSheet(); }, 1400);
+  } catch (err) {
+    status.className = 'report__status report__status--fail';
+    status.textContent = `Не отправилось: ${err.message}`;
+    button.disabled = false;
+  }
+}
+
 /* ── События ───────────────────────────────────────────────────────────── */
 const haptic = (style = 'light') => {
   try { tg?.HapticFeedback?.impactOccurred?.(style); } catch { /* нет поддержки */ }
@@ -671,6 +735,12 @@ dom.progTrigger.addEventListener('click', () => {
   openProgrammePicker();
 });
 
+dom.reportBtn.addEventListener('click', () => {
+  if (!state.data) return;
+  haptic();
+  openReport();
+});
+
 dom.compactBtn.addEventListener('click', () => {
   if (!state.data) return;
   state.compact = !state.compact;
@@ -691,6 +761,9 @@ dom.sheet.addEventListener('click', (ev) => {
     render();
     return;
   }
+
+  const send = ev.target.closest('[data-send]');
+  if (send) { sendReport(send); return; }
 
   const prog = ev.target.closest('[data-prog]');
   if (!prog) return;

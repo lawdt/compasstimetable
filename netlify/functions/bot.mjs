@@ -26,21 +26,31 @@ export default async (req) => {
   const chatId = message?.chat?.id;
   if (!chatId) return new Response('ok');
 
+  // /id пригодится один раз при настройке: в OWNER_CHAT_ID нужен именно он.
+  if (String(message.text || '').trim() === '/id') {
+    await send(token, chatId, `Идентификатор этого чата: ${chatId}`);
+    return new Response('ok');
+  }
+
   const appUrl = process.env.WEBAPP_URL || new URL(req.url).origin;
 
-  await fetch(`${API}${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: GREETING,
-      reply_markup: {
-        inline_keyboard: [[{ text: '📅 Открыть расписание', web_app: { url: appUrl } }]],
-      },
-    }),
+  await send(token, chatId, GREETING, {
+    inline_keyboard: [[{ text: '📅 Открыть расписание', web_app: { url: appUrl } }]],
   });
 
   return new Response('ok');
 };
+
+function send(token, chatId, text, markup) {
+  return fetch(`${API}${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      ...(markup ? { reply_markup: markup } : {}),
+    }),
+  });
+}
 
 export const config = { path: '/api/bot' };

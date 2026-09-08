@@ -438,7 +438,59 @@ button { font: inherit; color: inherit; }
   color: var(--muted);
 }
 
-.foot a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
+.foot__links { display: flex; gap: 14px; }
+
+.foot a,
+.foot__btn {
+  color: var(--muted);
+  text-decoration: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0;
+  background: none;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+/* ── Сообщение об ошибке ────────────────────────────────────────────────── */
+.report { display: grid; gap: 10px; }
+
+.report__hint { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+
+.report textarea {
+  width: 100%;
+  min-height: 116px;
+  padding: 12px 13px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.report textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.report__foot { display: flex; align-items: center; gap: 12px; }
+.report__count { flex: 1; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.report__send {
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.report__send:disabled { opacity: .5; cursor: default; }
+
+.report__status { margin: 0; font-size: 13px; line-height: 1.45; }
+.report__status--ok { color: #16a34a; }
+.report__status--fail { color: #dc2626; }
 
 /* ── Обновление тягой вниз ──────────────────────────────────────────────── */
 .refresh {

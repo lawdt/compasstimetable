@@ -41,6 +41,14 @@ createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/api/report') {
+    let body = '';
+    for await (const chunk of req) body += chunk;
+    console.log('[report]', body);
+    send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ ok: true }));
+    return;
+  }
+
   const rel = normalize(url.pathname === '/' ? '/index.html' : url.pathname).replace(/^(\.\.[/\\])+/, '');
   try {
     const body = await readFile(join(ROOT, rel));
