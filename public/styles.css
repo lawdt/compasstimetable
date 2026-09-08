@@ -431,26 +431,50 @@ button { font: inherit; color: inherit; }
 /* ── Подвал ─────────────────────────────────────────────────────────────── */
 .foot {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px var(--gutter) calc(20px + env(safe-area-inset-bottom));
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 10px var(--gutter) calc(16px + env(safe-area-inset-bottom));
   font-size: 11.5px;
   color: var(--muted);
 }
 
-.foot__links { display: flex; gap: 14px; }
+.foot__links { display: flex; flex-wrap: wrap; gap: 7px; }
 
 .foot a,
 .foot__btn {
-  color: var(--muted);
-  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 13px;
   border: 0;
-  border-bottom: 1px solid var(--line);
-  padding: 0;
-  background: none;
-  font-size: inherit;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .15s;
 }
+
+.foot a:active,
+.foot__btn:active { background: color-mix(in srgb, var(--text) 13%, transparent); }
+
+/* В компактном режиме день обычно умещается на экран, поэтому подвал
+   незачем оставлять болтаться по середине — прижимаем его к низу. */
+.is-compact .foot {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 15;
+  background: color-mix(in srgb, var(--page) 86%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-top: 1px solid var(--line);
+}
+
+.is-compact .page { padding-bottom: calc(var(--foot-h, 84px) + 12px); }
 
 /* ── Сообщение об ошибке ────────────────────────────────────────────────── */
 .report { display: grid; gap: 10px; }

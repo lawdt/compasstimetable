@@ -191,6 +191,12 @@ function render() {
     : '';
   dom.sourceLink.href = data.source || '#';
   dom.sourceLink.hidden = !data.source;
+
+  // Закреплённый подвал перекрывает конец списка, поэтому его высоту
+  // отдаём в отступ страницы: она зависит от того, как перенеслись кнопки.
+  requestAnimationFrame(() => {
+    document.documentElement.style.setProperty('--foot-h', `${dom.foot.offsetHeight}px`);
+  });
 }
 
 function renderDays(data, now) {
