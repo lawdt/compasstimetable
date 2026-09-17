@@ -52,8 +52,9 @@ export function parseProgramme(text: string): string | null {
   const said = normalize(text);
   if (word('обе|оба|все|любая|любую|не ?важно').test(said)) return 'all';
   if (/росси|русск/.test(said)) return 'ru';
-  // «местная» оставлена синонимом: так эту программу называют в школе.
-  if (/украин|местн/.test(said)) return 'ua';
+  // «украинская» и «местная» оставлены синонимами: так эту программу
+  // называют в школе и в миниаппе.
+  if (/друг|украин|местн/.test(said)) return 'ua';
   return null;
 }
 
@@ -134,5 +135,5 @@ export function speakTime(time: string | null): string {
 export const PROGRAMME_NAMES: Record<string, string> = {
   all: 'обе программы',
   ru: 'российская программа',
-  ua: 'украинская программа',
+  ua: 'другая программа',
 };

@@ -149,8 +149,8 @@ async function continueSetup(
     }
     await writeSettings(userId, { class_id: found.id, setup_step: 'programme' });
     return {
-      text: 'Записала. По какой программе — российской, украинской или обеим сразу?',
-      buttons: ['Российская', 'Украинская', 'Обе'],
+      text: 'Записала. По какой программе — российской, другой или обеим сразу?',
+      buttons: ['Российская', 'Другая', 'Обе'],
     };
   }
 
@@ -161,8 +161,8 @@ async function continueSetup(
     const programme = parseProgramme(said);
     if (!programme) {
       return {
-        text: 'Скажите «российская», «украинская» или «обе».',
-        buttons: ['Российская', 'Украинская', 'Обе'],
+        text: 'Скажите «российская», «другая» или «обе».',
+        buttons: ['Российская', 'Другая', 'Обе'],
       };
     }
     await writeSettings(userId, { programme, setup_step: 'extras' });
