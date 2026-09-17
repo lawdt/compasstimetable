@@ -69,9 +69,11 @@ export function visibleTracks(entry: Entry, programme: string): Track[] {
 // остаётся одна половина, иначе называем обе через «или».
 export function lessonName(entry: Entry, programme: string): string {
   const tracks = visibleTracks(entry, programme);
-  if (tracks.length > 1) return tracks.map((t) => t.subject).join(' или ');
-  if (tracks.length === 1) return tracks[0].subject;
-  return entry.subject;
+  // Строчную применяем к каждой половине: иначе «русский язык или Soft
+  // skills» — вторая половина остаётся с заглавной посреди фразы.
+  if (tracks.length > 1) return tracks.map((t) => speakSubject(t.subject)).join(' или ');
+  if (tracks.length === 1) return speakSubject(tracks[0].subject);
+  return speakSubject(entry.subject);
 }
 
 export interface DayPlan {
@@ -97,10 +99,10 @@ export function planFor(
 
   const entries = (day.byClass[classId] ?? []).filter((e) => e.kind === 'lesson');
   const lessons = entries.filter((e) => !e.paid).map((e) => ({
-    name: speakSubject(lessonName(e, programme)), start: e.start, end: e.end,
+    name: lessonName(e, programme), start: e.start, end: e.end,
   }));
   const extras = entries.filter((e) => e.paid).map((e) => ({
-    name: speakSubject(lessonName(e, programme)), start: e.start,
+    name: lessonName(e, programme), start: e.start,
   }));
 
   return {

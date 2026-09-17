@@ -95,6 +95,10 @@ async function handle(update: Record<string, any>): Promise<Reply> {
   const wanted = parseDay(said);
   if (wanted) return tell(settings, wanted);
 
+  // Просто «расписание» или «уроки», без дня: показываем завтрашний —
+  // ради него навык и нужен. Такие фразы стоят в примерах для каталога.
+  if (/расписани|уроки|занятия/.test(said)) return tell(settings, { offset: 1 });
+
   // Навык вызвали без вопроса — самое полезное по умолчанию это завтра.
   if (session.new || !said) return tell(settings, { offset: 1 });
 
