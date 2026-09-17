@@ -98,11 +98,18 @@ async function handle(update: Record<string, any>): Promise<Reply> {
   if (!settings?.class_id) return startSetup(userId, 'Здравствуйте!');
 
   const wanted = parseDay(said);
-  if (wanted) return tell(settings, wanted);
-
-  // Просто «расписание» или «уроки», без дня: показываем завтрашний —
-  // ради него навык и нужен. Такие фразы стоят в примерах для каталога.
-  if (/расписани|уроки|занятия/.test(said)) return tell(settings, { offset: 1 });
+  const asksSchedule = wanted || /расписани|уроки|занятия/.test(said);
+  if (asksSchedule) {
+    // В вопросе может быть назван чужой класс — отвечаем про него, но
+    // сохранённый выбор не трогаем.
+    const other = await namedClass(said, settings.class_id);
+    if (other && 'ambiguous' in other) {
+      return { text: `Уточните, пожалуйста: ${listOut(other.ambiguous)}?`, buttons: other.ambiguous };
+    }
+    const use = other ? { ...settings, class_id: other.id } : settings;
+    // Просто «расписание» без дня — это про завтра, ради него навык и нужен.
+    return tell(use, wanted ?? { offset: 1 }, Boolean(other));
+  }
 
   // Навык вызвали без вопроса — самое полезное по умолчанию это завтра.
   if (session.new || !said) return tell(settings, { offset: 1 });
@@ -193,11 +200,26 @@ async function continueSetup(
   return startSetup(userId, '');
 }
 
+// Класс засчитываем только при слове «класс»: иначе «первый урок» сойдёт
+// за первый класс. Если назван тот же класс, что сохранён, ничего не меняем.
+async function namedClass(
+  said: string,
+  current: string | null,
+): Promise<{ id: string } | { ambiguous: string[] } | null> {
+  if (!/класс|\bкл\b/i.test(said)) return null;
+  const { classes } = await loadSchedule();
+  const found = parseClass(said, classes);
+  if (!found) return null;
+  if ('ambiguous' in found) return found;
+  return found.id === current ? null : found;
+}
+
 /* ── Ответ про день ────────────────────────────────────────────────────── */
 
 async function tell(
   settings: Settings,
   wanted: { offset?: number; weekday?: string },
+  named = false,
 ): Promise<Reply> {
   const data = await loadSchedule();
   const buttons = ['Какие завтра уроки', 'Настройки'];
@@ -211,13 +233,18 @@ async function tell(
     ? WEEKDAY_NAMES[weekday]
     : ['сегодня', 'завтра', 'послезавтра'][wanted.offset ?? 0] ?? WEEKDAY_NAMES[weekday];
 
+  // Если класс назвали в вопросе, начинаем с него: отдельным предложением,
+  // чтобы не склонять название.
+  const prefix = named
+    ? `${(data.classes.find((c) => c.id === classId)?.title ?? classId).replace(/\.$/, '')}. `
+    : '';
   const plan = planFor(data, classId, weekday, settings.programme);
   if (!plan.found || !plan.lessons.length) {
     const next = nextSchoolDay(data, weekday);
     const tail = next && next !== weekday
       ? ` Ближайшие уроки — ${WEEKDAY_NAMES[next]}.`
       : '';
-    return { text: `${capitalize(when)} уроков нет.${tail}`, buttons };
+    return { text: `${prefix}${capitalize(when)} уроков нет.${tail}`, buttons };
   }
 
   const names = plan.lessons.map((l) => l.name);
@@ -226,7 +253,7 @@ async function tell(
   const span = plan.from && plan.till
     ? ` С ${speakTime(plan.from)} до ${speakTime(plan.till)}.`
     : '';
-  let text = `${capitalize(when)} ${count}: ${listOut(spoken)}.${span}`;
+  let text = `${prefix}${capitalize(when)} ${count}: ${listOut(spoken)}.${span}`;
 
   if (settings.extras && plan.extras.length) {
     text += ` После уроков: ${listOut(mergeRepeats(plan.extras.map((e) => e.name)))}.`;

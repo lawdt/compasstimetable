@@ -1,11 +1,17 @@
 // Разбор того, что человек сказал, и сборка ответа. Алиса присылает команду
 // уже в нижнем регистре и без знаков препинания.
 
-const ORDINALS: Record<string, string> = {
-  подготовительный: 'подг', подготовишка: 'подг', подготовка: 'подг', нулевой: 'подг',
-  первый: '1', второй: '2', третий: '3', четвертый: '4', пятый: '5',
-  шестой: '6', седьмой: '7', восьмой: '8', девятый: '9',
-};
+// Сравниваем по основе, а не по целому слову: класс называют в любом падеже
+// — «второго», «во втором», «вторая группа».
+const ORDINALS: [RegExp, string][] = [
+  [/подготов|нулев/, 'подг'],
+  [/перв/, '1'], [/втор/, '2'], [/трет/, '3'], [/четв/, '4'], [/пят/, '5'],
+  [/шест/, '6'], [/седьм/, '7'], [/восьм/, '8'], [/девят/, '9'],
+];
+
+// Дни недели убираем перед разбором: «вторник» начинается так же, как
+// «второй», а «пятница» — как «пятый».
+const WEEKDAY_WORDS = /понедельник\w*|вторник\w*|сред[ауые]\w*|четверг\w*|пятниц\w*|суббот\w*|воскресен\w*/g;
 
 const COUNT_FORMS = ['урок', 'урока', 'уроков'];
 
@@ -25,13 +31,13 @@ export function parseClass(
   text: string,
   classes: { id: string; title: string }[],
 ): { id: string } | { ambiguous: string[] } | null {
-  const said = normalize(text);
+  const said = normalize(text).replace(WEEKDAY_WORDS, ' ');
 
   let base = '';
   const digit = word('(\\d)').exec(said);
   if (digit) base = digit[1];
-  for (const [word, value] of Object.entries(ORDINALS)) {
-    if (said.includes(word)) { base = value; break; }
+  for (const [stem, value] of ORDINALS) {
+    if (stem.test(said)) { base = value; break; }
   }
   if (!base) return null;
 
