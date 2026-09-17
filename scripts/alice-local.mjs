@@ -18,11 +18,24 @@ const db = createServer(async (req, res) => {
     const row = rows.get(id);
     return json(res, row ? [row] : []);
   }
+  // PATCH обновляет существующую строку, POST создаёт новую — так же, как
+  // это делает PostgREST, на котором работает навык.
+  if (req.method === 'PATCH') {
+    let body = '';
+    for await (const chunk of req) body += chunk;
+    const row = rows.get(id);
+    if (!row) return json(res, []);
+    const next = { ...row, ...JSON.parse(body) };
+    rows.set(id, next);
+    return json(res, [next]);
+  }
   if (req.method === 'POST') {
     let body = '';
     for await (const chunk of req) body += chunk;
     const patch = JSON.parse(body);
-    rows.set(patch.user_id, { ...(rows.get(patch.user_id) || { programme: 'all', extras: true }), ...patch });
+    rows.set(patch.user_id, {
+      programme: 'all', extras: true, setup_step: null, ...patch,
+    });
     return json(res, [], 201);
   }
   if (req.method === 'DELETE') { rows.delete(id); return json(res, [], 204); }
@@ -93,6 +106,9 @@ const SCRIPTS = {
   setup: ['', 'пятый', 'российская', 'да', 'какие завтра уроки', 'что в среду', 'настройки', 'второй'],
   ask: ['какие завтра уроки', 'а в пятницу', 'что в субботу', 'что сегодня',
     'что ты умеешь', 'бла бла бла'],
+  other: ['какие завтра уроки у второго б класса', 'что в среду у 9 класса',
+    'какие уроки во втором классе', 'во вторник у третьего класса',
+    'первый урок завтра', 'какие завтра уроки'],
   escape: ['', 'что ты умеешь', 'отмена'],
   second: ['', 'второй', 'второй а', 'обе', 'нет', 'какие завтра уроки'],
 };
@@ -100,7 +116,7 @@ const SCRIPTS = {
 const name = process.argv[2] || 'setup';
 
 // Сценарии про вопросы начинаются с уже настроенного пользователя.
-if (name === 'ask') {
+if (name === 'ask' || name === 'other') {
   rows.set(USER, { user_id: USER, class_id: '5', programme: 'ru', extras: true });
 }
 
