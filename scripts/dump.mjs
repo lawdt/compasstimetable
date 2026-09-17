@@ -6,6 +6,8 @@ const args = process.argv.slice(2);
 const asJson = args.includes('--json');
 const only = args.find((a) => !a.startsWith('--'));
 
+const place = (t) => (t.teacher ? ` — ${t.teacher}` : '') + (t.place ? `, каб. ${t.place}` : '');
+
 const data = await fetchSchedule();
 
 if (asJson) {
@@ -20,16 +22,27 @@ if (asJson) {
       console.log(`  ${cls.title}:`);
       for (const e of day.byClass[cls.id] || []) {
         const time = [e.start, e.end].filter(Boolean).join('–').padEnd(11);
-        const bits = [];
-        if (e.teachers.length) bits.push(e.teachers.join(' + '));
-        if (e.place) bits.push(`каб. ${e.place}`);
-        if (e.note) bits.push(e.note);
-        if (e.split) bits.push('ПОДГРУППЫ');
-        if (e.secondEnglish) bits.push(`2-я гр. англ. (${e.marker})`);
-        else if (e.marker) bits.push(`маркер ${e.marker}`);
-        if (e.extra) bits.push('доп. курс');
-        if (e.sharedWith.length) bits.push(`вместе с ${e.sharedWith.join(', ')}`);
-        console.log(`    ${time} [${e.kind[0]}] ${e.subject}${bits.length ? '  — ' + bits.join('; ') : ''}`);
+        const flags = [
+          e.paid && 'платное',
+          e.double && 'сдвоенный',
+          e.secondEnglish && '2-я гр. англ.',
+          e.sharedWith.length && `вместе с ${e.sharedWith.join(', ')}`,
+          e.note,
+        ].filter(Boolean);
+        const tail = flags.length ? `  — ${flags.join('; ')}` : '';
+
+        if (e.tracks.length) {
+          console.log(`    ${time} ${e.index || ' '} ${e.tracks[0].subject}${place(e.tracks[0])}${tail}`);
+          for (const t of e.tracks.slice(1)) {
+            console.log(`    ${' '.repeat(11)}   ${t.subject}${place(t)}`);
+          }
+          continue;
+        }
+
+        const who = e.teachers.length ? ` — ${e.teachers.join(' · ')}` : '';
+        const room = e.place ? `, каб. ${e.place}` : '';
+        const mark = e.kind === 'lesson' ? String(e.index) : e.kind[0];
+        console.log(`    ${time} ${mark} ${e.subject}${who}${room}${tail}`);
       }
     }
   }
