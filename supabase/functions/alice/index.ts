@@ -4,7 +4,7 @@
 // этим пользователем. Настройки — класс, программа и нужно ли упоминать
 // дополнительные занятия — спрашиваются один раз и лежат в Postgres.
 import { loadSchedule, planFor, schoolDay } from '../_shared/schedule.ts';
-import { dropSettings, readSettings, writeSettings } from '../_shared/store.ts';
+import { readSettings, Settings, writeSettings } from '../_shared/store.ts';
 import {
   listOut, parseClass, parseDay, parseProgramme, parseYesNo, plural,
   PROGRAMME_NAMES, speakTime,
@@ -70,19 +70,24 @@ async function handle(update: Record<string, any>): Promise<Reply> {
     ?? update.request?.payload?.command
     ?? update.request?.original_utterance
     ?? '';
-  const state = (update.state?.session ?? {}) as Record<string, any>;
   const settings = await readSettings(userId);
+  // Шаг настройки держим в базе, а не в состоянии сессии: Алиса возвращает
+  // state только при включённой опции «Использовать хранилище данных»,
+  // и без неё диалог зацикливался на первом вопросе.
+  const step = settings?.setup_step ?? '';
 
   // Из настройки должен быть выход: справка и отмена работают и в ней.
-  if (state.setup && isHelp(said)) {
-    return { text: HELP, session: state, buttons: ['Продолжить настройку'] };
+  if (step && isHelp(said)) {
+    return { text: HELP, buttons: ['Продолжить настройку'] };
   }
-  if (state.setup && /отмена|отмени|хватит|стоп|не надо ничего/.test(said)) {
-    return settings
-      ? { text: 'Хорошо, оставила как было.', buttons: ['Какие завтра уроки'] }
-      : { text: 'Хорошо. Скажите «настройки», когда будете готовы.' };
+  if (step && /отмена|отмени|хватит|стоп|не надо ничего/.test(said)) {
+    if (settings?.class_id) {
+      await writeSettings(userId, { setup_step: null });
+      return { text: 'Хорошо, оставила как было.', buttons: ['Какие завтра уроки'] };
+    }
+    return { text: 'Хорошо. Скажите «настройки», когда будете готовы.' };
   }
-  if (state.setup) return continueSetup(userId, state, said, settings);
+  if (step) return continueSetup(userId, step, said, settings);
 
   if (/настройк|смен|помен|заново|сначала|сброс/.test(said)) {
     return startSetup(userId, 'Давайте настроим заново.');
@@ -90,7 +95,7 @@ async function handle(update: Record<string, any>): Promise<Reply> {
   if (isHelp(said)) {
     return { text: HELP, buttons: ['Какие завтра уроки', 'Настройки'] };
   }
-  if (!settings) return startSetup(userId, 'Здравствуйте!');
+  if (!settings?.class_id) return startSetup(userId, 'Здравствуйте!');
 
   const wanted = parseDay(said);
   if (wanted) return tell(settings, wanted);
@@ -112,48 +117,44 @@ async function handle(update: Record<string, any>): Promise<Reply> {
 
 async function startSetup(userId: string, prefix: string): Promise<Reply> {
   const { classes } = await loadSchedule();
+  await writeSettings(userId, { setup_step: 'class' });
   return {
     text: `${prefix} Для какого класса смотреть расписание? `
       + 'Скажите номер — например, пятый или второй А.',
-    session: { setup: 'class' },
     buttons: classes.map((c) => c.title),
   };
 }
 
 async function continueSetup(
   userId: string,
-  state: Record<string, any>,
+  step: string,
   said: string,
-  settings: { class_id: string; programme: string; extras: boolean } | null,
+  settings: Settings | null,
 ): Promise<Reply> {
   const data = await loadSchedule();
 
-  if (state.setup === 'class') {
+  if (step === 'class') {
     const found = parseClass(said, data.classes);
     if (!found) {
       return {
         text: 'Не расслышала класс. Скажите, например, «пятый» или «второй А».',
-        session: { setup: 'class' },
         buttons: data.classes.map((c) => c.title),
       };
     }
     if ('ambiguous' in found) {
       return {
         text: `Уточните, пожалуйста: ${listOut(found.ambiguous)}?`,
-        session: { setup: 'class' },
         buttons: found.ambiguous,
       };
     }
-    // Сохраняем сразу: если разговор прервётся, класс не придётся называть снова.
-    await writeSettings(userId, { class_id: found.id });
+    await writeSettings(userId, { class_id: found.id, setup_step: 'programme' });
     return {
       text: 'Записала. По какой программе — российской, местной или обеим сразу?',
-      session: { setup: 'programme' },
       buttons: ['Российская', 'Местная', 'Обе'],
     };
   }
 
-  if (state.setup === 'programme') {
+  if (step === 'programme') {
     // Класс сохраняется на предыдущем шаге; если записи нет, разговор
     // потерял нить — начинаем сначала, а не пишем пустой класс.
     if (!settings) return startSetup(userId, '');
@@ -161,28 +162,26 @@ async function continueSetup(
     if (!programme) {
       return {
         text: 'Скажите «российская», «местная» или «обе».',
-        session: { setup: 'programme' },
         buttons: ['Российская', 'Местная', 'Обе'],
       };
     }
-    await writeSettings(userId, { class_id: settings.class_id, programme });
+    await writeSettings(userId, { programme, setup_step: 'extras' });
     return {
       text: 'Хорошо. Рассказывать про дополнительные занятия после уроков?',
-      session: { setup: 'extras' },
       buttons: ['Да', 'Нет'],
     };
   }
 
-  if (state.setup === 'extras') {
+  if (step === 'extras') {
     if (!settings) return startSetup(userId, '');
     const extras = parseYesNo(said);
     if (extras === null) {
-      return { text: 'Скажите «да» или «нет».', session: { setup: 'extras' }, buttons: ['Да', 'Нет'] };
+      return { text: 'Скажите «да» или «нет».', buttons: ['Да', 'Нет'] };
     }
-    await writeSettings(userId, { class_id: settings.class_id, extras });
+    await writeSettings(userId, { extras, setup_step: null });
 
     const saved = await readSettings(userId);
-    if (!saved) return { text: 'Настройки не сохранились, попробуйте ещё раз.' };
+    if (!saved?.class_id) return { text: 'Настройки не сохранились, попробуйте ещё раз.' };
 
     const title = data.classes.find((c) => c.id === saved.class_id)?.title ?? saved.class_id;
     const head = `Готово: ${title}, ${PROGRAMME_NAMES[saved.programme]}, `
@@ -197,18 +196,22 @@ async function continueSetup(
 /* ── Ответ про день ────────────────────────────────────────────────────── */
 
 async function tell(
-  settings: { class_id: string; programme: string; extras: boolean },
+  settings: Settings,
   wanted: { offset?: number; weekday?: string },
 ): Promise<Reply> {
   const data = await loadSchedule();
   const buttons = ['Какие завтра уроки', 'Настройки'];
+  const classId = settings.class_id;
+  if (!classId) {
+    return { text: 'Сначала нужно выбрать класс. Скажите «настройки».', buttons: ['Настройки'] };
+  }
 
   const weekday = wanted.weekday ?? schoolDay(wanted.offset ?? 0).weekday;
   const when = wanted.weekday
     ? WEEKDAY_NAMES[weekday]
     : ['сегодня', 'завтра', 'послезавтра'][wanted.offset ?? 0] ?? WEEKDAY_NAMES[weekday];
 
-  const plan = planFor(data, settings.class_id, weekday, settings.programme);
+  const plan = planFor(data, classId, weekday, settings.programme);
   if (!plan.found || !plan.lessons.length) {
     const next = nextSchoolDay(data, weekday);
     const tail = next && next !== weekday

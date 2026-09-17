@@ -5,9 +5,11 @@ const KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const TABLE = `${URL_BASE}/rest/v1/alice_settings`;
 
 export interface Settings {
-  class_id: string;
+  class_id: string | null;
   programme: string;
   extras: boolean;
+  // На каком вопросе остановилась настройка; null — она завершена.
+  setup_step: string | null;
 }
 
 const headers = {
@@ -21,7 +23,7 @@ export async function readSettings(userId: string): Promise<Settings | null> {
 
   const query = new URLSearchParams({
     user_id: `eq.${userId}`,
-    select: 'class_id,programme,extras',
+    select: 'class_id,programme,extras,setup_step',
     limit: '1',
   });
   const res = await fetch(`${TABLE}?${query}`, { headers });
@@ -30,19 +32,26 @@ export async function readSettings(userId: string): Promise<Settings | null> {
   return rows[0] ?? null;
 }
 
+// Обновляем точечно, а не через upsert: PostgREST при конфликте заменяет
+// строку целиком и подставляет умолчания в непереданные столбцы — так
+// сохранение одного поля стирало класс и программу.
 export async function writeSettings(userId: string, patch: Partial<Settings>): Promise<void> {
-  const res = await fetch(`${TABLE}?on_conflict=user_id`, {
+  const updated = await fetch(`${TABLE}?user_id=eq.${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers: { ...headers, prefer: 'return=representation' },
+    body: JSON.stringify(patch),
+  });
+  if (!updated.ok) {
+    throw new Error(`обновление настроек: HTTP ${updated.status} ${await updated.text()}`);
+  }
+  if ((await updated.json() as unknown[]).length) return;
+
+  const created = await fetch(TABLE, {
     method: 'POST',
-    headers: { ...headers, prefer: 'resolution=merge-duplicates,return=minimal' },
+    headers: { ...headers, prefer: 'return=minimal' },
     body: JSON.stringify({ user_id: userId, ...patch }),
   });
-  if (!res.ok) throw new Error(`запись настроек: HTTP ${res.status} ${await res.text()}`);
-}
-
-export async function dropSettings(userId: string): Promise<void> {
-  const res = await fetch(`${TABLE}?user_id=eq.${encodeURIComponent(userId)}`, {
-    method: 'DELETE',
-    headers: { ...headers, prefer: 'return=minimal' },
-  });
-  if (!res.ok) throw new Error(`сброс настроек: HTTP ${res.status}`);
+  if (!created.ok) {
+    throw new Error(`создание настроек: HTTP ${created.status} ${await created.text()}`);
+  }
 }
