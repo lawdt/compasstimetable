@@ -16,7 +16,7 @@ comment on table public.alice_settings is
 comment on column public.alice_settings.user_id is
   'session.user.user_id из запроса Алисы, иначе application_id устройства';
 comment on column public.alice_settings.programme is
-  'all — обе программы, ru — российская, ua — местная';
+  'all — обе программы, ru — российская, ua — украинская';
 
 create or replace function public.touch_updated_at() returns trigger
 language plpgsql as $$
