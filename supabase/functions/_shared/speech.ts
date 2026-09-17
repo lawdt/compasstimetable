@@ -99,6 +99,26 @@ export function plural(n: number, forms = COUNT_FORMS): string {
   return forms[2];
 }
 
+const TIMES_FORMS = ['раз', 'раза', 'раз'];
+const NUMBER_WORDS = ['', '', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь'];
+
+// Повторы схлопываем в «труд два раза». Форму «два труда» не берём нарочно:
+// после числительного нужен родительный падеж, а предметы в таблице
+// появляются новые каждую неделю — «два Soft skills» звучало бы хуже.
+export function mergeRepeats(names: string[]): string[] {
+  const order: string[] = [];
+  const counts = new Map<string, number>();
+  for (const name of names) {
+    if (!counts.has(name)) order.push(name);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return order.map((name) => {
+    const n = counts.get(name) ?? 1;
+    if (n < 2) return name;
+    return `${name} ${NUMBER_WORDS[n] ?? n} ${plural(n, TIMES_FORMS)}`;
+  });
+}
+
 export function listOut(items: string[]): string {
   if (items.length <= 1) return items.join('');
   return `${items.slice(0, -1).join(', ')} и ${items[items.length - 1]}`;

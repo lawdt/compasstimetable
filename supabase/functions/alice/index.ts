@@ -6,8 +6,8 @@
 import { loadSchedule, planFor, schoolDay } from '../_shared/schedule.ts';
 import { readSettings, Settings, writeSettings } from '../_shared/store.ts';
 import {
-  listOut, parseClass, parseDay, parseProgramme, parseYesNo, plural,
-  PROGRAMME_NAMES, speakTime,
+  listOut, mergeRepeats, parseClass, parseDay, parseProgramme, parseYesNo,
+  plural, PROGRAMME_NAMES, speakTime,
 } from '../_shared/speech.ts';
 
 const WEEKDAY_NAMES: Record<string, string> = {
@@ -222,13 +222,14 @@ async function tell(
 
   const names = plan.lessons.map((l) => l.name);
   const count = `${names.length} ${plural(names.length)}`;
+  const spoken = mergeRepeats(names);
   const span = plan.from && plan.till
     ? ` С ${speakTime(plan.from)} до ${speakTime(plan.till)}.`
     : '';
-  let text = `${capitalize(when)} ${count}: ${listOut(names)}.${span}`;
+  let text = `${capitalize(when)} ${count}: ${listOut(spoken)}.${span}`;
 
   if (settings.extras && plan.extras.length) {
-    text += ` После уроков: ${listOut(plan.extras.map((e) => e.name))}.`;
+    text += ` После уроков: ${listOut(mergeRepeats(plan.extras.map((e) => e.name)))}.`;
   }
   return { text, buttons };
 }
