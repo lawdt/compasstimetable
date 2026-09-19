@@ -1,4 +1,8 @@
 const tg = window.Telegram?.WebApp;
+// В вебе расписание лежит рядом, поэтому адрес пустой. В приложении для
+// Android статика открывается локально, и туда подставляется адрес сайта
+// (см. public/config.js и задачу syncWeb в android/app/build.gradle.kts).
+const API_BASE = window.COMPASS_API || '';
 const STORE_KEY = 'compass.class';
 const PROG_KEY = 'compass.programme';
 const COMPACT_KEY = 'compass.compact';
@@ -100,7 +104,7 @@ async function load({ force = false } = {}) {
   }
 
   try {
-    const res = await fetch(`/api/schedule${force ? '?fresh=1' : ''}`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE}/api/schedule${force ? '?fresh=1' : ''}`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (!data?.days?.length) throw new Error('пустой ответ');
@@ -779,6 +783,14 @@ dom.sheet.addEventListener('click', (ev) => {
   closeSheet();
   render();
 });
+
+// Приложение для Android спрашивает у страницы, что делать по кнопке
+// «назад»: открытую шторку закрываем сами, иначе оно закроется целиком.
+window.__androidBack = () => {
+  if (!sheetOpen) return false;
+  closeSheet();
+  return true;
+};
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape' && sheetOpen) { closeSheet(); return; }

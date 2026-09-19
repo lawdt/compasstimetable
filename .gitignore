@@ -4,3 +4,11 @@
 node_modules
 .netlify
 .venv
+
+# Android
+android/.gradle
+android/build
+android/app/build
+android/app/src/main/assets
+android/local.properties
+android/.kotlin

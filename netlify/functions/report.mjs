@@ -3,7 +3,16 @@ import { createHmac } from 'node:crypto';
 
 const MAX_LENGTH = 1000;
 
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'content-type',
+  'access-control-allow-methods': 'POST, OPTIONS',
+};
+
 export default async (req) => {
+  // Приложение для Android шлёт форму с другого origin, поэтому браузер
+  // сначала спрашивает разрешение.
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'только POST' }, 405);
 
   const token = process.env.BOT_TOKEN;
@@ -71,7 +80,11 @@ function describeUser(initData, token) {
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      ...CORS,
+    },
   });
 }
 

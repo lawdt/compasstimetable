@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Совпадает с фоном страницы, чтобы при запуске не было вспышки. -->
+    <color name="window">#F2F3F7</color>
+    <color name="icon_background">#2F7DE1</color>
+</resources>
