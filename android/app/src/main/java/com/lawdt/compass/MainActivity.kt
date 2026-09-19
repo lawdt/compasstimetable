@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -15,6 +16,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebSettingsCompat
@@ -94,15 +96,20 @@ class MainActivity : androidx.activity.ComponentActivity() {
             }
         }
 
-        setContentView(web)
+        // Отступы вешаем на контейнер, а не на сам WebView: он их не
+        // применяет, и шапка страницы заезжала под строку состояния.
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.window))
+            addView(web)
+        }
+        setContentView(root)
 
-        // Системные панели не перекрывают ленту: их высоту отдаём в отступы.
-        ViewCompat.setOnApplyWindowInsetsListener(web) { view, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
             )
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-            insets
+            WindowInsetsCompat.CONSUMED
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
