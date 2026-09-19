@@ -104,11 +104,16 @@ class MainActivity : androidx.activity.ComponentActivity() {
         }
         setContentView(root)
 
+        // Клавиатуру учитываем наравне с панелями: без этого она закрывала
+        // форму сообщения об ошибке — шторка прижата к низу окна, а окно про
+        // клавиатуру не знало.
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
-            val bars = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            val space = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars()
+                    or WindowInsetsCompat.Type.displayCutout()
+                    or WindowInsetsCompat.Type.ime(),
             )
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            view.setPadding(space.left, space.top, space.right, space.bottom)
             WindowInsetsCompat.CONSUMED
         }
 
