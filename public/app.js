@@ -482,7 +482,7 @@ async function sendReport(button) {
   status.textContent = 'Отправляем…';
 
   try {
-    const res = await fetch('/api/report', {
+    const res = await fetch(`${API_BASE}/api/report`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
