@@ -830,12 +830,12 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ── Сезонная тема ─────────────────────────────────────────────────────── */
-// Неделя Хеллоуина: с 25 октября по 2 ноября. Адрес ?season=halloween
-// включает её в любой день, ?season=off выключает насовсем.
+// Хеллоуин: весь октябрь и первые дни ноября. Адрес ?season=halloween
+// включает тему в любой день, ?season=off выключает.
 function season(now = new Date()) {
   const month = now.getMonth() + 1;
   const day = now.getDate();
-  const halloween = (month === 10 && day >= 25) || (month === 11 && day <= 2);
+  const halloween = month === 10 || (month === 11 && day <= 2);
   return halloween ? 'halloween' : '';
 }
 
