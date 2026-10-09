@@ -164,3 +164,46 @@ html[data-season="halloween"] .sheet__panel {
 /* Цветные кантики у карточек в таблице заданы для светлого фона — ночью они
    бьют по глазам, поэтому приглушаем. */
 html[data-season="halloween"] .lesson::before { opacity: .72; }
+
+/* Тыква-фонарь в конце дня: стоит под подвалом, а не поверх ленты, — иначе
+   на длинном дне она выглядывала оранжевыми кусками между карточками.
+   В компактном режиме подвал прижат к низу экрана, там ей места нет. */
+html[data-season="halloween"] body:not(.is-compact) .foot {
+  position: relative;
+  padding-bottom: calc(150px + env(safe-area-inset-bottom));
+}
+
+html[data-season="halloween"] body:not(.is-compact) .foot::after {
+  content: "";
+  position: absolute;
+  right: -16px;
+  bottom: calc(-12px + env(safe-area-inset-bottom));
+  width: 172px;
+  height: 160px;
+  pointer-events: none;
+  opacity: .5;
+  filter: drop-shadow(0 6px 30px rgba(255, 138, 30, .45));
+  background: no-repeat center / contain
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 94"><path d="M48 27c-1-10 3-16 14-18-4 5-5 9-4 12 5-3 10-2 13 3-8-1-12 3-14 9z" fill="%235fa83c"/><g fill="%23ff7a18"><ellipse cx="50" cy="59" rx="46" ry="34"/><ellipse cx="28" cy="59" rx="23" ry="34"/><ellipse cx="72" cy="59" rx="23" ry="34"/></g><g fill="none" stroke="%23e8600a" stroke-width="2.2" opacity=".5"><path d="M31 32q-7 27 0 54M69 32q7 27 0 54"/></g><g fill="%232b1206"><path d="M28 48l19-7-1 16z"/><path d="M72 48l-19-7 1 16z"/><path d="M50 58l6 11H44z"/><path d="M24 73q26 13 52 0-5 16-26 16t-26-16z"/></g><g fill="%23ff8f2a"><path d="M34 76l5 7 5-7zM56 76l5 7 5-7z"/></g></svg>');
+}
+
+/* Паутинка в верхнем углу карточки. Номер урока рядом, поэтому держим её
+   совсем бледной и чуть поднимаем сам номер, чтобы он не терялся. */
+html[data-season="halloween"] .lesson::after,
+html[data-season="halloween"] .outro::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 54px;
+  height: 54px;
+  pointer-events: none;
+  opacity: .14;
+  transform: scaleX(-1);
+  background: no-repeat left top / contain
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="%23ffffff" stroke-width="2" stroke-linecap="round"><path d="M0 0 0 100M0 0 100 0M0 0 72 72M0 0 32 94M0 0 94 32"/><path d="M0 26Q14 24 24 12M0 52Q28 46 46 24M0 78Q42 70 70 36"/></svg>');
+}
+
+html[data-season="halloween"] .outro { position: relative; overflow: hidden; }
+
+html[data-season="halloween"] .lesson__n { opacity: .62; }
