@@ -21,24 +21,12 @@ html[data-season="halloween"] {
   --ghost: #9d7bff;
 }
 
-/* Ночь: тёплый отсвет луны из-за правого верхнего угла. Слой фиксированный и
-   лежит под всем содержимым, поэтому матовое стекло шапки его размывает. */
+/* Фон ровный, без градиента и подсветки: при оттяжке вниз над шапкой
+   открывается полоса, и любой перелив в верхнем углу выдаёт себя чужим
+   пятном. Глубину дают сами карточки. */
 html[data-season="halloween"] body {
-  /* no-repeat обязателен: ниже содержимого градиент иначе повторяется
-     вторым экраном и даёт поперечный шов. */
-  background: radial-gradient(130% 70% at 50% 0%, #251b35 0%, var(--page) 60%)
-    no-repeat var(--page);
+  background: var(--page);
   min-height: 100vh;
-}
-
-html[data-season="halloween"] body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: radial-gradient(320px 240px at calc(100% + 24px) -36px,
-    rgba(255, 216, 160, .55), rgba(255, 190, 120, .16) 44%, transparent 72%);
 }
 
 /* Паутина в левом верхнем углу экрана: висит над шапкой, но клики пропускает.
@@ -78,6 +66,28 @@ html[data-season="halloween"] .topbar::before {
 }
 
 html[data-season="halloween"] .topbar__row { padding-right: calc(var(--gutter) + 56px); }
+
+/* Паучок спускается на нити из угловой паутины. Строке с названием школы
+   добавляем сверху немного воздуха — иначе нити вешать некуда. */
+html[data-season="halloween"] .topbar__top { padding-top: 18px; }
+
+html[data-season="halloween"] .topbar::after {
+  content: "";
+  position: absolute;
+  top: env(safe-area-inset-top);
+  right: 150px;
+  width: 28px;
+  height: 52px;
+  z-index: 32;
+  pointer-events: none;
+  background: no-repeat center top / contain url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 56"><path d="M15 0v23" stroke="%23ded2f5" stroke-width="1.3" fill="none"/><g fill="none" stroke="%232b2140" stroke-width="2.2" stroke-linecap="round"><path d="M8 37q-6 0-7-5M8 42q-6 1-7 7M22 37q6 0 7-5M22 42q6 1 7 7M9 33q-4-2-5-7M21 33q4-2 5-7"/></g><ellipse cx="15" cy="39" rx="8" ry="7.2" fill="%232b2140"/><circle cx="15" cy="29" r="4.8" fill="%232b2140"/><g fill="%23fff"><circle cx="13.2" cy="28.2" r="1.8"/><circle cx="16.8" cy="28.2" r="1.8"/></g><g fill="%232b2140"><circle cx="13.4" cy="28.6" r="1"/><circle cx="17" cy="28.6" r="1"/></g></svg>');
+  animation: spider-drop 6s ease-in-out infinite;
+}
+
+@keyframes spider-drop {
+  0%, 100% { transform: translateY(-4px); }
+  50% { transform: translateY(5px); }
+}
 
 html[data-season="halloween"] .topbar__eyebrow {
   color: color-mix(in srgb, var(--pumpkin) 55%, var(--muted));
@@ -210,7 +220,8 @@ html[data-season="halloween"] body:not(.is-compact) .foot::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-season="halloween"] .foot::before { animation: none; }
+  html[data-season="halloween"] .foot::before,
+  html[data-season="halloween"] .topbar::after { animation: none; }
 }
 
 html[data-season="halloween"] .sheet__panel {
@@ -220,3 +231,21 @@ html[data-season="halloween"] .sheet__panel {
 /* Цветные кантики у карточек в таблице заданы для светлого фона — ночью они
    бьют по глазам, поэтому приглушаем. */
 html[data-season="halloween"] .lesson::before { opacity: .72; }
+
+/* В компактном режиме подвал прижат к низу экрана и места под сцену в нём
+   нет, поэтому привидение садится на него сверху, у правого края. */
+html[data-season="halloween"] body.is-compact .foot::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  bottom: 100%;
+  /* Утапливаем в полосу подвала: так привидение меньше залезает на
+     последнюю карточку и выглядит выглядывающим из-за неё. */
+  margin-bottom: -20px;
+  width: 70px;
+  height: 88px;
+  pointer-events: none;
+  opacity: .82;
+  filter: drop-shadow(0 6px 20px rgba(157, 123, 255, .35));
+  background: no-repeat center bottom / contain url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80"><path d="M32 5c14 0 23 11 23 25v40c0 4-4 5-7 2l-4-5c-1-2-4-2-5 0l-3 4c-1 2-4 2-5 0l-3-4c-1-2-4-2-5 0l-4 5c-3 3-7 2-7-2V30C12 16 21 5 32 5z" fill="%23f6f2fb"/><g fill="%232b2140"><ellipse cx="24" cy="33" rx="3.4" ry="4.4"/><ellipse cx="41" cy="33" rx="3.4" ry="4.4"/></g><path d="M28 42q4 4 8 0" fill="none" stroke="%232b2140" stroke-width="2.2" stroke-linecap="round"/><g fill="%23f4a6b4" opacity=".75"><ellipse cx="17" cy="41" rx="4" ry="2.6"/><ellipse cx="48" cy="41" rx="4" ry="2.6"/></g></svg>');
+}
