@@ -839,6 +839,26 @@ function season(now = new Date()) {
   return halloween ? 'halloween' : '';
 }
 
+const GHOST_KEY = 'compass.ghost';
+
+// Привидение висит поверх расписания и по нажатию прячется в угол, оставляя
+// торчать голову. Выбор запоминаем: иначе оно выпрыгивало бы обратно при
+// каждом открытии приложения.
+function addGhost() {
+  const ghost = document.createElement('button');
+  ghost.type = 'button';
+  ghost.className = 'ghost';
+  ghost.title = 'Привидение';
+  ghost.setAttribute('aria-label', 'Привидение');
+  ghost.innerHTML = '<span class="ghost__body"></span>';
+  if (readLocal(GHOST_KEY) === 'tucked') ghost.classList.add('ghost--tucked');
+  ghost.addEventListener('click', () => {
+    const tucked = ghost.classList.toggle('ghost--tucked');
+    try { localStorage.setItem(GHOST_KEY, tucked ? 'tucked' : 'out'); } catch { /* приватный режим */ }
+  });
+  document.body.append(ghost);
+}
+
 {
   const asked = new URLSearchParams(location.search).get('season');
   const name = asked === 'off' ? '' : (asked || season());
@@ -846,6 +866,7 @@ function season(now = new Date()) {
     document.documentElement.dataset.season = name;
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#140e1d');
   }
+  if (name === 'halloween') addGhost();
 }
 
 /* ── Старт ─────────────────────────────────────────────────────────────── */
