@@ -67,20 +67,22 @@ html[data-season="halloween"] .topbar::before {
 
 html[data-season="halloween"] .topbar__row { padding-right: calc(var(--gutter) + 56px); }
 
-/* Паучок спускается на нити из угловой паутины. Строке с названием школы
-   добавляем сверху немного воздуха — иначе нити вешать некуда. */
+/* Паучок висит на нити рядом с тыквой. Нить крепится к брюшку, глаза на
+   туловище, зрачки сведены к носу — как на открытке. Строке с названием
+   школы добавляем сверху немного воздуха, иначе нить вешать некуда. Коробка
+   слегка заходит на поле тыквы: там, на высоте полей шляпы, пусто. */
 html[data-season="halloween"] .topbar__top { padding-top: 18px; }
 
 html[data-season="halloween"] .topbar::after {
   content: "";
   position: absolute;
   top: env(safe-area-inset-top);
-  right: 146px;
-  width: 34px;
-  height: 56px;
+  right: 104px;
+  width: 50px;
+  height: 41px;
   z-index: 32;
   pointer-events: none;
-  background: no-repeat center top / contain url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 92"><path d="M36 0v32" stroke="%23ded2f5" stroke-width="1.6" fill="none"/><g fill="none" stroke="%2343315f" stroke-width="5.4" stroke-linecap="round" stroke-linejoin="round"><path d="M24 46 9 38 2 44M23 54 6 53 1 62M25 62 11 68 8 78M30 68 23 78 25 88"/><path d="M48 46 63 38 70 44M49 54 66 53 71 62M47 62 61 68 64 78M42 68 49 78 47 88"/></g><ellipse cx="36" cy="60" rx="15" ry="13" fill="%2343315f"/><circle cx="36" cy="46" r="11" fill="%2343315f"/><g fill="%23fff"><circle cx="31" cy="45" r="4.6"/><circle cx="41" cy="45" r="4.6"/></g><g fill="%231b1430"><circle cx="31.8" cy="45.8" r="2.3"/><circle cx="41.8" cy="45.8" r="2.3"/></g></svg>');
+  background: no-repeat center top / contain url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 130"><path d="M80 0V66" stroke="%23ded2f5" stroke-width="2.4" fill="none"/><g fill="none" stroke="%2343315f" stroke-width="9" stroke-linecap="butt" stroke-linejoin="miter"><path d="M67 74 54 51 25 55M63 82 42 71 13 80M63 92 40 99 14 107M69 100 55 112 47 128"/><path d="M93 74 106 51 135 55M97 82 118 71 147 80M97 92 120 99 146 107M91 100 105 112 113 128"/></g><ellipse cx="80" cy="85" rx="24" ry="21" fill="%2343315f"/><g fill="%23fff"><ellipse cx="72" cy="83" rx="7.6" ry="8.2"/><ellipse cx="88" cy="83" rx="7.6" ry="8.2"/></g><g fill="%231b1430"><circle cx="74.8" cy="85" r="3.6"/><circle cx="85.2" cy="85" r="3.6"/></g></svg>');
   animation: spider-drop 6s ease-in-out infinite;
 }
 
@@ -179,9 +181,10 @@ html[data-season="halloween"] .foot__btn {
   background: color-mix(in srgb, var(--ghost) 13%, transparent);
 }
 
-/* Привидение висит поверх ленты и само по себе покачивается. По нажатию
-   прячется в правый нижний угол — наружу остаётся торчать голова с глазами.
-   Качание живёт на внутреннем слое, чтобы не спорить со сдвигом в угол. */
+/* Привидение висит поверх ленты, полупрозрачное, и само по себе
+   покачивается. По нажатию уходит вниз за край экрана — торчат только макушка
+   и глаза, а само оно становится прозрачнее. Качание живёт на внутреннем слое,
+   прятанье — на внешнем, чтобы анимация не спорила со сдвигом. */
 html[data-season="halloween"] .ghost {
   position: fixed;
   right: 10px;
@@ -192,16 +195,27 @@ html[data-season="halloween"] .ghost {
   padding: 0;
   border: 0;
   background: none;
+  opacity: .8;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   filter: drop-shadow(0 8px 22px rgba(157, 123, 255, .3));
-  transition: transform .5s cubic-bezier(.22, .9, .3, 1);
+  transition: bottom .5s cubic-bezier(.22, .9, .3, 1), opacity .4s;
 }
 
 /* В компактном режиме подвал прижат к низу экрана — поднимаем привидение
    над ним, чтобы не перекрывало кнопки. */
 html[data-season="halloween"] body.is-compact .ghost {
   bottom: calc(var(--foot-h, 84px) + 8px);
+}
+
+/* Спрятавшись, привидение держится за нижний край экрана в любом режиме:
+   над краем остаётся 42 px — макушка и глаза целиком (они кончаются на
+   40-м пикселе). Качается оно в этом положении всего на 2 px, чтобы из-за
+   края не вылезал рот. */
+html[data-season="halloween"] .ghost--tucked,
+html[data-season="halloween"] body.is-compact .ghost--tucked {
+  bottom: -43px;
+  opacity: .4;
 }
 
 html[data-season="halloween"] .ghost__body {
@@ -212,11 +226,16 @@ html[data-season="halloween"] .ghost__body {
   animation: ghost-float 5.5s ease-in-out infinite;
 }
 
-html[data-season="halloween"] .ghost--tucked { transform: translate(16px, 54px); }
+html[data-season="halloween"] .ghost--tucked .ghost__body { animation-name: ghost-peek; }
 
 @keyframes ghost-float {
   0%, 100% { transform: translate(0, 0) rotate(-1.5deg); }
   50% { transform: translate(-4px, -7px) rotate(1.5deg); }
+}
+
+@keyframes ghost-peek {
+  0%, 100% { transform: translate(0, 0) rotate(-1deg); }
+  50% { transform: translate(-2px, -2px) rotate(1deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
