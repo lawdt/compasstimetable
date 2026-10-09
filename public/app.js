@@ -829,6 +829,25 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') load();
 });
 
+/* ── Сезонная тема ─────────────────────────────────────────────────────── */
+// Неделя Хеллоуина: с 25 октября по 2 ноября. Адрес ?season=halloween
+// включает её в любой день, ?season=off выключает насовсем.
+function season(now = new Date()) {
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+  const halloween = (month === 10 && day >= 25) || (month === 11 && day <= 2);
+  return halloween ? 'halloween' : '';
+}
+
+{
+  const asked = new URLSearchParams(location.search).get('season');
+  const name = asked === 'off' ? '' : (asked || season());
+  if (name) {
+    document.documentElement.dataset.season = name;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#140e1d');
+  }
+}
+
 /* ── Старт ─────────────────────────────────────────────────────────────── */
 if (tg) {
   tg.ready();

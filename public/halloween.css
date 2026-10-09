@@ -1,0 +1,166 @@
+/* Сезонная тема на неделю Хеллоуина. Включается из app.js флагом
+   data-season на <html>, поэтому в остальное время файл ничего не красит. */
+
+html[data-season="halloween"] {
+  --page: #140e1d;
+  --card: #221a30;
+  --text: #f4eefb;
+  --muted: #a697bd;
+  --accent: #ff7a18;
+  --accent-ink: #1a1020;
+  --line: rgba(255, 255, 255, .1);
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 10px 26px -16px rgba(0, 0, 0, .9);
+  --tint: 17%;
+
+  /* Тыква для ночи темновата, поэтому у тегов и кантиков свой, более светлый
+     оттенок — на тёмном фоне он читается, а в карточке не слепит. */
+  --pumpkin: #ff9a3c;
+  --ghost: #9d7bff;
+}
+
+/* Ночь: тёплый отсвет сверху и луна за шапкой. Слой фиксированный и лежит
+   под всем содержимым, поэтому матовое стекло шапки размывает луну — она
+   светит как сквозь туман. */
+html[data-season="halloween"] body {
+  /* no-repeat обязателен: ниже содержимого градиент иначе повторяется
+     вторым экраном и даёт поперечный шов. */
+  background: radial-gradient(130% 70% at 50% 0%, #251b35 0%, var(--page) 60%)
+    no-repeat var(--page);
+  min-height: 100vh;
+}
+
+html[data-season="halloween"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(320px 240px at calc(100% + 24px) -36px,
+    rgba(255, 216, 160, .55), rgba(255, 190, 120, .16) 44%, transparent 72%);
+}
+
+/* Паутина в левом верхнем углу: висит над шапкой, но клики пропускает. */
+html[data-season="halloween"] body::after {
+  content: "";
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: 0;
+  width: 84px;
+  height: 84px;
+  background: no-repeat left top / contain
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="%23e3d6ff" stroke-width="1.5" stroke-linecap="round"><path d="M0 0 0 100M0 0 100 0M0 0 70 70M0 0 30 92M0 0 92 30"/><path d="M0 22Q12 20 20 10M0 44Q24 40 40 20M0 66Q36 60 60 30M0 88Q48 80 80 40"/></svg>');
+  opacity: .17;
+  pointer-events: none;
+  z-index: 31;
+}
+
+/* Летучая мышь над пустым краем шапки: тихо качается, но замирает, если в
+   системе выключены анимации. */
+html[data-season="halloween"] .topbar::after {
+  content: "";
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 7px);
+  right: 54px;
+  width: 26px;
+  height: 14px;
+  background: no-repeat center / contain
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 28" fill="%23cfbdf2"><path d="M32 6c2 0 3.4 1.6 3.8 3.6 2.6-3.4 6.4-6.2 11-7.4-1.4 2.6-1.6 5-1 7 2.8-2 6.4-3 10.6-2.8-3 1.8-5 4.2-6 7-1 2.8-.6 5.6 1.4 8.4-5.2-1-9.4-.6-12.6 1.2-2.4 1.4-4.4 3.4-6 6-1.2-2.6-2.6-4.4-4.2-5.4-1.6 1-3 2.8-4.2 5.4-1.6-2.6-3.6-4.6-6-6C15.6 21.2 11.4 20.8 6.2 21.8c2-2.8 2.4-5.6 1.4-8.4-1-2.8-3-5.2-6-7 4.2-.2 7.8.8 10.6 2.8-.6-2-.4-4.4 1-7 4.6 1.2 8.4 4 11 7.4C24.6 7.6 26 6 28 6z"/></svg>');
+  opacity: .5;
+  pointer-events: none;
+  animation: bat-drift 6s ease-in-out infinite;
+}
+
+@keyframes bat-drift {
+  0%, 100% { transform: translate(0, 0) rotate(-5deg); }
+  50% { transform: translate(-10px, 5px) rotate(6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-season="halloween"] .topbar::after { animation: none; }
+}
+
+html[data-season="halloween"] .topbar {
+  background: color-mix(in srgb, var(--page) 78%, transparent);
+}
+
+/* Тыква перед названием школы — единственная эмодзи в интерфейсе,
+   остальное держим на цвете и формах. */
+html[data-season="halloween"] .topbar__eyebrow::before {
+  content: "🎃";
+  display: inline-block;
+  margin-right: 6px;
+  letter-spacing: 0;
+}
+
+html[data-season="halloween"] .topbar__eyebrow {
+  color: color-mix(in srgb, var(--pumpkin) 55%, var(--muted));
+}
+
+html[data-season="halloween"] .day {
+  background: color-mix(in srgb, var(--ghost) 11%, transparent);
+}
+
+html[data-season="halloween"] .day[aria-selected="true"] {
+  background: linear-gradient(180deg, #ff9a3c, #f2650a);
+  color: #241003;
+  box-shadow: 0 6px 18px -10px rgba(255, 122, 24, .9);
+}
+
+html[data-season="halloween"] .prog-trigger {
+  background: color-mix(in srgb, var(--ghost) 14%, transparent);
+}
+
+html[data-season="halloween"] .prog-trigger--set {
+  background: color-mix(in srgb, var(--pumpkin) 18%, transparent);
+  color: var(--pumpkin);
+}
+
+/* Карточки: сверху слабый отблеск, чтобы они не сливались с фоном. */
+html[data-season="halloween"] .lesson,
+html[data-season="halloween"] .outro {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .045), transparent 34%);
+}
+
+html[data-season="halloween"] .lesson--paid {
+  background: color-mix(in srgb, var(--ghost) 15%, var(--card));
+}
+
+html[data-season="halloween"] .lesson--now {
+  box-shadow: 0 0 0 2px var(--pumpkin), 0 8px 24px -14px rgba(255, 154, 60, .9), var(--shadow);
+}
+
+html[data-season="halloween"] .room {
+  background: color-mix(in srgb, var(--ghost) 16%, transparent);
+}
+
+html[data-season="halloween"] .tag--split { --tone: #4ade80; }
+html[data-season="halloween"] .tag--long { --tone: #38d9e8; }
+html[data-season="halloween"] .tag--english { --tone: #7aa7ff; }
+html[data-season="halloween"] .tag--shared { --tone: #c08bff; }
+html[data-season="halloween"] .tag--extra { --tone: var(--pumpkin); }
+
+html[data-season="halloween"] .notice {
+  background: color-mix(in srgb, var(--ghost) 15%, var(--card));
+}
+
+html[data-season="halloween"] .notice svg { color: var(--ghost); }
+
+html[data-season="halloween"] .retry,
+html[data-season="halloween"] .report__send {
+  background: linear-gradient(180deg, #ff9a3c, #f2650a);
+  color: #241003;
+}
+
+html[data-season="halloween"] .foot a,
+html[data-season="halloween"] .foot__btn {
+  background: color-mix(in srgb, var(--ghost) 13%, transparent);
+}
+
+html[data-season="halloween"] .sheet__panel {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 18%);
+}
+
+/* Цветные кантики у карточек в таблице заданы для светлого фона — ночью они
+   бьют по глазам, поэтому приглушаем. */
+html[data-season="halloween"] .lesson::before { opacity: .72; }
