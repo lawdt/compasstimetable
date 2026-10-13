@@ -24,8 +24,7 @@ import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewFeature
 
 // Расписание живёт в вебе, приложение — оболочка вокруг той же страницы.
-// Статика лежит внутри apk, поэтому окно открывается сразу и без сети, а
-// данные подгружаются с сайта.
+// Файлы страницы приходят с сайта, а без сети — из кэша или из apk.
 class MainActivity : androidx.activity.ComponentActivity() {
 
     private lateinit var web: WebView
@@ -38,7 +37,7 @@ class MainActivity : androidx.activity.ComponentActivity() {
         // так у страницы стабильный источник, и localStorage переживает
         // обновления приложения.
         val loader = WebViewAssetLoader.Builder()
-            .addPathHandler("/", WebViewAssetLoader.AssetsPathHandler(this))
+            .addPathHandler("/", SiteFiles(this, BuildConfig.SITE_ORIGIN))
             .build()
 
         web = WebView(this).apply {

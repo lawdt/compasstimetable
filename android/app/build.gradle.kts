@@ -3,9 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Адрес, откуда приложение берёт расписание. Статика лежит внутри apk, а
-// данные всегда свежие — поэтому обновление расписания не требует
-// переустановки приложения.
+// Адрес, откуда приложение берёт расписание и файлы страницы: и данные, и
+// дизайн обновляются деплоем сайта, без переустановки приложения. Копия
+// страницы внутри apk нужна, только когда сети нет.
 val scheduleOrigin = "https://compass-bar-schedule.netlify.app"
 
 android {
@@ -16,8 +16,14 @@ android {
         applicationId = "com.lawdt.compass"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+
+        buildConfigField("String", "SITE_ORIGIN", "\"$scheduleOrigin\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
@@ -43,7 +49,8 @@ dependencies {
 }
 
 // Статику миниаппа не дублируем в репозитории: перед сборкой она копируется
-// из public/, а config.js подменяется на адрес сайта.
+// из public/, а config.js подменяется на адрес сайта. Скрипт Telegram из
+// index.html вырезает само приложение, когда отдаёт страницу.
 val syncWeb = tasks.register<Sync>("syncWeb") {
     from(rootProject.file("../public")) {
         exclude("__*.html")
@@ -51,16 +58,6 @@ val syncWeb = tasks.register<Sync>("syncWeb") {
     into(layout.projectDirectory.dir("src/main/assets"))
 
     doLast {
-        // Скрипт Telegram в приложении не нужен: без него страница не считает
-        // себя миниаппом и не ждёт ответов от несуществующего окружения.
-        val index = layout.projectDirectory.file("src/main/assets/index.html").asFile
-        index.writeText(
-            index.readText().replace(
-                Regex("<script src=\"https://telegram\\.org/[^\"]*\"></script>\\s*"),
-                "",
-            ),
-        )
-
         layout.projectDirectory.file("src/main/assets/config.js").asFile.writeText(
             "// Файл создаётся сборкой, правьте public/config.js.\n" +
                 "window.COMPASS_API = '" + scheduleOrigin + "';\n",
