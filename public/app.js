@@ -8,6 +8,12 @@ const PROG_KEY = 'compass.programme';
 const COMPACT_KEY = 'compass.compact';
 const CACHE_KEY = 'compass.cache.v1';
 const TZ = 'Europe/Podgorica';
+const VISITOR_KEY = 'compass.visitor';
+
+// Статистика открытий пишется прямо в Supabase. Ключ публичный: анонимной
+// роли там можно только добавлять строки в visits, читать их нельзя.
+const STATS_URL = 'https://whfealudautpwcoaufdi.supabase.co/rest/v1/visits';
+const STATS_KEY = 'sb_publishable_S6g6865D_-SgJfMmcDn5Hw_tgXmokwh';
 
 const el = (id) => document.getElementById(id);
 const dom = {
@@ -874,6 +880,46 @@ function addGhost() {
   if (name === 'halloween') addGhost();
 }
 
+/* ── Статистика ────────────────────────────────────────────────────────── */
+// Одна строка на открытие: откуда открыли и что выбрано. Вместо пользователя —
+// случайный id, который живёт в localStorage этого устройства. Ошибки
+// глотаем: статистика не должна мешать расписанию.
+function platform() {
+  if (tg?.initData) return 'telegram';
+  if (location.hostname === 'appassets.androidplatform.net') return 'android';
+  return 'web';
+}
+
+function visitorId() {
+  let id = readLocal(VISITOR_KEY);
+  if (!id) {
+    id = crypto.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    try { localStorage.setItem(VISITOR_KEY, id); } catch { /* приватный режим */ }
+  }
+  return id;
+}
+
+function sendVisit() {
+  if (['localhost', '127.0.0.1'].includes(location.hostname)) return;
+  fetch(STATS_URL, {
+    method: 'POST',
+    keepalive: true,
+    headers: {
+      apikey: STATS_KEY,
+      'content-type': 'application/json',
+      prefer: 'return=minimal',
+    },
+    body: JSON.stringify({
+      platform: platform(),
+      visitor: visitorId(),
+      class_id: state.classId ? String(state.classId).slice(0, 16) : null,
+      programme: state.programme,
+      compact: state.compact,
+      season: document.documentElement.dataset.season || null,
+    }),
+  }).catch(() => { /* без сети — не страшно */ });
+}
+
 /* ── Старт ─────────────────────────────────────────────────────────────── */
 if (tg) {
   tg.ready();
@@ -901,5 +947,6 @@ if (PROGRAMMES.some((p) => p.id === prog)) state.programme = prog;
 state.compact = savedCompact === '1';
 booted = true;
 render();
+sendVisit();
 await loading;
 render();
