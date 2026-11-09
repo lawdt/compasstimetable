@@ -13,16 +13,12 @@
   --gutter: 16px;
   --time-col: 50px;
   --tint: 6%;
-
-  /* Высота полосы внизу экрана, которую занимает бейдж Netlify. */
-  --badge-space: 0px;
 }
 
-/* На бесплатном тарифе Netlify вставляет в каждую страницу бейдж: iframe в
-   правом нижнем углу, 18 px от краёв и около 38 px высотой. Убрать его
-   нельзя, поэтому всё, что прижато к низу экрана, поднимаем над ним. Без
-   бейджа (локально, на платном тарифе) отступа нет. */
-:root:has(#nl-badge-frame) { --badge-space: 62px; }
+/* Netlify на бесплатном тарифе вставляет в страницу бейдж — iframe в правом
+   нижнем углу поверх подвала и шторок. Стиль у него встроенный, но без
+   !important, так что правило отсюда сильнее. */
+#nl-badge-frame { display: none !important; }
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -443,7 +439,7 @@ button { font: inherit; color: inherit; }
   flex-direction: column;
   align-items: flex-start;
   gap: 7px;
-  padding: 10px var(--gutter) max(calc(16px + env(safe-area-inset-bottom)), var(--badge-space));
+  padding: 10px var(--gutter) calc(16px + env(safe-area-inset-bottom));
   font-size: 11.5px;
   color: var(--muted);
 }
@@ -624,7 +620,7 @@ button { font: inherit; color: inherit; }
 }
 
 .sheet__body {
-  padding: 0 var(--gutter) max(calc(22px + env(safe-area-inset-bottom)), var(--badge-space));
+  padding: 0 var(--gutter) calc(22px + env(safe-area-inset-bottom));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
