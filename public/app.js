@@ -830,13 +830,15 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ── Сезонная тема ─────────────────────────────────────────────────────── */
-// Хеллоуин: весь октябрь и первые дни ноября. Адрес ?season=halloween
-// включает тему в любой день, ?season=off выключает.
+// Хеллоуин: весь октябрь и первые дни ноября; остальная осень — сентябрь и
+// ноябрь. Адрес ?season=halloween или ?season=autumn включает тему в любой
+// день, ?season=off выключает.
 function season(now = new Date()) {
   const month = now.getMonth() + 1;
   const day = now.getDate();
-  const halloween = month === 10 || (month === 11 && day <= 2);
-  return halloween ? 'halloween' : '';
+  if (month === 10 || (month === 11 && day <= 2)) return 'halloween';
+  if (month === 9 || month === 11) return 'autumn';
+  return '';
 }
 
 const GHOST_KEY = 'compass.ghost';
@@ -864,7 +866,10 @@ function addGhost() {
   const name = asked === 'off' ? '' : (asked || season());
   if (name) {
     document.documentElement.dataset.season = name;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#140e1d');
+    // Цвет строки браузера берём из темы: у осени он свой для светлой и
+    // тёмной схемы.
+    const page = getComputedStyle(document.documentElement).getPropertyValue('--page').trim();
+    if (page) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', page);
   }
   if (name === 'halloween') addGhost();
 }

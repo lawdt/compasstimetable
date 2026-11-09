@@ -1,0 +1,70 @@
+/* Осенняя тема: тёплые цвета и один кленовый лист в шапке. Включается из
+   app.js флагом data-season на <html>, в остальное время файл ничего не
+   красит. Светлая и тёмная схемы следуют системной, как и основная тема. */
+
+html[data-season="autumn"] {
+  --page: #f5efe6;
+  --card: #fffcf7;
+  --text: #2b2119;
+  --muted: #8c7c6b;
+  --accent: #c25e2a;
+  --accent-ink: #fffaf3;
+  --line: rgba(92, 58, 28, .11);
+
+  --shadow: 0 1px 2px rgba(92, 58, 28, .06), 0 6px 20px -12px rgba(92, 58, 28, .28);
+  --leaf: #d4682c;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-season="autumn"] {
+    --page: #16120e;
+    --card: #221c16;
+    --text: #f3ebe1;
+    --muted: #a39482;
+    --accent: #e58a4c;
+    --accent-ink: #1d130b;
+    --line: rgba(255, 236, 214, .1);
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, .35);
+    --leaf: #e8834a;
+  }
+}
+
+html[data-season="autumn"] body { background: var(--page); }
+
+html[data-season="autumn"] .topbar {
+  background: color-mix(in srgb, var(--page) 80%, transparent);
+}
+
+html[data-season="autumn"] .topbar__eyebrow {
+  color: color-mix(in srgb, var(--leaf) 50%, var(--muted));
+}
+
+/* Лист лежит в строке с названием школы, между надписью и кнопкой
+   компактного режима: там свободно, и он не теснит название класса.
+   Покачивается медленно и едва заметно — как на ветру, а не в пляске. */
+html[data-season="autumn"] .topbar::before {
+  content: "";
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 8px);
+  right: 58px;
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+  transform-origin: 50% 92%;
+  background: no-repeat center / contain url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="%23f2a03d"/><stop offset=".55" stop-color="%23de6a2a"/><stop offset="1" stop-color="%23b8432a"/></linearGradient></defs><path d="M50 4 56 20 65 15 62 38 75 27 79 35 93 31 88 46 96 50 74 66 78 74 53 70 52 96 48 96 47 70 22 74 26 66 4 50 12 46 7 31 21 35 25 27 38 38 35 15 44 20Z" fill="url(%23g)" stroke="%23a8432a" stroke-width="1.2" stroke-linejoin="round"/><g fill="none" stroke="%237c2e17" stroke-width="1.6" stroke-linecap="round" opacity=".45"><path d="M50 92V20M50 66 80 40M50 66 20 40M50 74 70 70M50 74 30 70"/></g></svg>');
+  animation: leaf-sway 7s ease-in-out infinite;
+}
+
+@keyframes leaf-sway {
+  0%, 100% { transform: rotate(-14deg); }
+  50% { transform: rotate(-4deg) translateY(1px); }
+}
+
+html[data-season="autumn"] .day[aria-selected="true"] {
+  box-shadow: 0 6px 16px -10px color-mix(in srgb, var(--accent) 90%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-season="autumn"] .topbar::before { animation: none; transform: rotate(-10deg); }
+}
