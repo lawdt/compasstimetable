@@ -837,7 +837,7 @@ document.addEventListener('visibilitychange', () => {
 
 /* ── Сезонная тема ─────────────────────────────────────────────────────── */
 // Хеллоуин: весь октябрь и первые дни ноября, после него до конца ноября —
-// осень; её цвета включаются листом в шапке. Адрес ?season=halloween или
+// осень; её цвета выключаются листом в шапке. Адрес ?season=halloween или
 // ?season=autumn показывает тему в любой день, ?season=off выключает.
 function season(now = new Date()) {
   const month = now.getMonth() + 1;
@@ -857,8 +857,8 @@ function syncThemeColor() {
   if (page) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', page);
 }
 
-// Осенние цвета включаются листом в шапке и выключаются им же. Выбор
-// запоминаем, как и у привидения.
+// Осенние цвета включены по умолчанию, лист в шапке их выключает и включает
+// обратно. Выбор запоминаем, как и у привидения.
 function addLeaf() {
   const root = document.documentElement;
   const leaf = document.createElement('button');
@@ -873,7 +873,7 @@ function addLeaf() {
     leaf.setAttribute('aria-label', leaf.title);
     syncThemeColor();
   };
-  apply(readLocal(AUTUMN_KEY) === 'on');
+  apply(readLocal(AUTUMN_KEY) !== 'off');
   leaf.addEventListener('click', () => {
     const on = root.dataset.autumn !== 'on';
     apply(on);
@@ -959,7 +959,7 @@ function visitorId() {
 }
 
 // Осень с выключенными цветами отмечаем отдельно: так видно, сколько людей
-// тему включили.
+// тему выключили.
 function seasonForStats() {
   const { season: name, autumn } = document.documentElement.dataset;
   if (name === 'autumn' && autumn !== 'on') return 'autumn-off';
