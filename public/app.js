@@ -836,18 +836,79 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ── Сезонная тема ─────────────────────────────────────────────────────── */
-// Хеллоуин: весь октябрь и первые дни ноября; остальная осень — сентябрь и
-// ноябрь. Адрес ?season=halloween или ?season=autumn включает тему в любой
-// день, ?season=off выключает.
+// Хеллоуин: весь октябрь и первые дни ноября, после него до конца ноября —
+// осень; её цвета включаются листом в шапке. Адрес ?season=halloween или
+// ?season=autumn показывает тему в любой день, ?season=off выключает.
 function season(now = new Date()) {
   const month = now.getMonth() + 1;
   const day = now.getDate();
   if (month === 10 || (month === 11 && day <= 2)) return 'halloween';
-  if (month === 9 || month === 11) return 'autumn';
+  if (month === 11) return 'autumn';
   return '';
 }
 
 const GHOST_KEY = 'compass.ghost';
+const AUTUMN_KEY = 'compass.autumn';
+
+// Цвет строки браузера берём из темы: у сезонов он свой, а у осени ещё и
+// разный для светлой и тёмной схемы.
+function syncThemeColor() {
+  const page = getComputedStyle(document.documentElement).getPropertyValue('--page').trim();
+  if (page) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', page);
+}
+
+// Осенние цвета включаются листом в шапке и выключаются им же. Выбор
+// запоминаем, как и у привидения.
+function addLeaf() {
+  const root = document.documentElement;
+  const leaf = document.createElement('button');
+  leaf.type = 'button';
+  leaf.className = 'leaf';
+  leaf.innerHTML = '<span class="leaf__body"></span>';
+  const apply = (on) => {
+    root.dataset.autumn = on ? 'on' : 'off';
+    if (on) scheduleFall(3000);
+    leaf.setAttribute('aria-pressed', String(on));
+    leaf.title = on ? 'Выключить осеннюю тему' : 'Включить осеннюю тему';
+    leaf.setAttribute('aria-label', leaf.title);
+    syncThemeColor();
+  };
+  apply(readLocal(AUTUMN_KEY) === 'on');
+  leaf.addEventListener('click', () => {
+    const on = root.dataset.autumn !== 'on';
+    apply(on);
+    try { localStorage.setItem(AUTUMN_KEY, on ? 'on' : 'off'); } catch { /* приватный режим */ }
+  });
+  el('topbar').append(leaf);
+}
+
+// Изредка с дерева срывается лист: раз в 15–35 секунд, пока тема включена и
+// страница на экране. Таймер один на всех, повторное включение его не
+// множит.
+let fallTimer = 0;
+function scheduleFall(delay = 15000 + Math.random() * 20000) {
+  clearTimeout(fallTimer);
+  fallTimer = setTimeout(() => {
+    if (document.documentElement.dataset.autumn !== 'on') return;
+    if (document.visibilityState === 'visible') dropLeaf();
+    scheduleFall();
+  }, delay);
+}
+
+function dropLeaf() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const rand = (from, to) => from + Math.random() * (to - from);
+  const fall = document.createElement('span');
+  fall.className = 'fall';
+  fall.innerHTML = '<span class="fall__body"></span>';
+  fall.style.setProperty('--x', `${rand(8, 88)}%`);
+  fall.style.setProperty('--size', `${rand(20, 32)}px`);
+  fall.style.setProperty('--hue', `${rand(-25, 12)}deg`);
+  fall.style.setProperty('--dur', `${rand(9, 14)}s`);
+  fall.style.setProperty('--swing', `${rand(2.4, 3.8)}s`);
+  fall.addEventListener('animationend', (e) => { if (e.target === fall) fall.remove(); });
+  document.body.append(fall);
+}
 
 // Привидение висит поверх расписания и по нажатию прячется в угол, оставляя
 // торчать голову. Выбор запоминаем: иначе оно выпрыгивало бы обратно при
@@ -872,12 +933,10 @@ function addGhost() {
   const name = asked === 'off' ? '' : (asked || season());
   if (name) {
     document.documentElement.dataset.season = name;
-    // Цвет строки браузера берём из темы: у осени он свой для светлой и
-    // тёмной схемы.
-    const page = getComputedStyle(document.documentElement).getPropertyValue('--page').trim();
-    if (page) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', page);
+    syncThemeColor();
   }
   if (name === 'halloween') addGhost();
+  if (name === 'autumn') addLeaf();
 }
 
 /* ── Статистика ────────────────────────────────────────────────────────── */
@@ -899,6 +958,14 @@ function visitorId() {
   return id;
 }
 
+// Осень с выключенными цветами отмечаем отдельно: так видно, сколько людей
+// тему включили.
+function seasonForStats() {
+  const { season: name, autumn } = document.documentElement.dataset;
+  if (name === 'autumn' && autumn !== 'on') return 'autumn-off';
+  return name || null;
+}
+
 function sendVisit() {
   if (['localhost', '127.0.0.1'].includes(location.hostname)) return;
   fetch(STATS_URL, {
@@ -915,7 +982,7 @@ function sendVisit() {
       class_id: state.classId ? String(state.classId).slice(0, 16) : null,
       programme: state.programme,
       compact: state.compact,
-      season: document.documentElement.dataset.season || null,
+      season: seasonForStats(),
     }),
   }).catch(() => { /* без сети — не страшно */ });
 }
